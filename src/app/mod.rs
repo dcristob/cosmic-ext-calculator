@@ -96,6 +96,7 @@ pub enum Message {
     ParenClose,
     Undo,
     CopyResult,
+    SwitchMode(Mode),
 }
 
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq)]
@@ -129,10 +130,10 @@ impl MenuActionTrait for MenuAction {
             MenuAction::About => Message::ToggleContextPage(ContextPage::About),
             MenuAction::ClearHistory => Message::CleanHistory,
             MenuAction::ToggleHistory => Message::ToggleContextPage(ContextPage::History),
-            MenuAction::SwitchStandard
-            | MenuAction::SwitchEngineering
-            | MenuAction::SwitchFinancial
-            | MenuAction::Undo => Message::ToggleContextDrawer,
+            MenuAction::SwitchStandard => Message::SwitchMode(Mode::Standard),
+            MenuAction::SwitchEngineering => Message::SwitchMode(Mode::Engineering),
+            MenuAction::SwitchFinancial => Message::SwitchMode(Mode::Financial),
+            MenuAction::Undo => Message::Undo,
         }
     }
 }
@@ -294,6 +295,42 @@ impl Application for CosmicCalculator {
                         return self.update(action.message());
                     }
                 }
+                if modifiers.is_empty() || modifiers == Modifiers::SHIFT {
+                    match &key {
+                        Key::Character(c) => match c.as_str() {
+                            "0" => return self.update(Message::Number(0)),
+                            "1" => return self.update(Message::Number(1)),
+                            "2" => return self.update(Message::Number(2)),
+                            "3" => return self.update(Message::Number(3)),
+                            "4" => return self.update(Message::Number(4)),
+                            "5" => return self.update(Message::Number(5)),
+                            "6" => return self.update(Message::Number(6)),
+                            "7" => return self.update(Message::Number(7)),
+                            "8" => return self.update(Message::Number(8)),
+                            "9" => return self.update(Message::Number(9)),
+                            "+" => return self.update(Message::Operator(Operator::Add)),
+                            "-" => return self.update(Message::Operator(Operator::Subtract)),
+                            "*" => return self.update(Message::Operator(Operator::Multiply)),
+                            "/" => return self.update(Message::Operator(Operator::Divide)),
+                            "." => return self.update(Message::Decimal),
+                            "(" => return self.update(Message::ParenOpen),
+                            ")" => return self.update(Message::ParenClose),
+                            "=" => return self.update(Message::Evaluate),
+                            "%" => return self.update(Message::Percent),
+                            _ => {}
+                        },
+                        Key::Named(named) => {
+                            use cosmic::iced::keyboard::key::Named;
+                            match named {
+                                Named::Enter => return self.update(Message::Evaluate),
+                                Named::Escape => return self.update(Message::Clear),
+                                Named::Backspace => return self.update(Message::Backspace),
+                                _ => {}
+                            }
+                        }
+                        _ => {}
+                    }
+                }
             }
             Message::Modifiers(modifiers) => {
                 self.modifiers = modifiers;
@@ -377,6 +414,15 @@ impl Application for CosmicCalculator {
             }
             Message::CopyResult => {
                 // Clipboard support comes later
+            }
+            Message::SwitchMode(mode) => {
+                self.mode = mode;
+                let entity = self.mode_model.iter().find(|&entity| {
+                    self.mode_model.data::<Mode>(entity) == Some(&mode)
+                });
+                if let Some(entity) = entity {
+                    self.mode_model.activate(entity);
+                }
             }
         }
         cosmic::iced::Task::batch(tasks)
