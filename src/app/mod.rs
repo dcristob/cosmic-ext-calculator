@@ -38,6 +38,11 @@ pub struct CosmicCalculator {
     mode_model: segmented_button::SingleSelectModel,
     expression: String,
     display: String,
+    tvm_n: String,
+    tvm_rate: String,
+    tvm_pv: String,
+    tvm_pmt: String,
+    tvm_fv: String,
     history: Vec<HistoryEntry>,
     toasts: widget::Toasts<Message>,
     input_id: widget::Id,
@@ -89,6 +94,23 @@ pub enum BaseDisplay {
     Bin,
 }
 
+#[derive(Debug, Clone, Copy)]
+pub enum TvmField {
+    N,
+    Rate,
+    Pv,
+    Pmt,
+    Fv,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum QuickFinancial {
+    Margin,
+    Markup,
+    TaxAdd,
+    TaxRemove,
+}
+
 #[derive(Debug, Clone)]
 pub enum Message {
     ModeSelected(segmented_button::Entity),
@@ -119,6 +141,10 @@ pub enum Message {
     AngleModeChanged(config::AngleMode),
     BitwiseOp(BitwiseOp),
     BaseDisplay(BaseDisplay),
+    TvmFieldChanged(TvmField, String),
+    TvmSolve(TvmField),
+    QuickFinancial(QuickFinancial),
+    ToggleSign,
 }
 
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq)]
@@ -211,6 +237,11 @@ impl Application for CosmicCalculator {
             mode_model,
             expression: String::new(),
             display: String::from("0"),
+            tvm_n: String::new(),
+            tvm_rate: String::new(),
+            tvm_pv: String::new(),
+            tvm_pmt: String::new(),
+            tvm_fv: String::new(),
             history,
             toasts: widget::toaster::Toasts::new(Message::CloseToast),
             input_id: widget::Id::unique(),
@@ -270,7 +301,9 @@ impl Application for CosmicCalculator {
         let button_grid = match self.mode {
             Mode::Standard => ui::standard::view(),
             Mode::Engineering => ui::engineering::view(self.config.angle_mode),
-            Mode::Financial => widget::text("Financial mode - coming soon").into(),
+            Mode::Financial => ui::financial::view(
+                &self.tvm_n, &self.tvm_rate, &self.tvm_pv, &self.tvm_pmt, &self.tvm_fv,
+            ),
         };
 
         widget::column::with_capacity(4)
@@ -475,6 +508,83 @@ impl Application for CosmicCalculator {
             }
             Message::BaseDisplay(_base) => {
                 // Base display toggle - will show alt_bases from result
+            }
+            Message::TvmFieldChanged(field, value) => {
+                match field {
+                    TvmField::N => self.tvm_n = value,
+                    TvmField::Rate => self.tvm_rate = value,
+                    TvmField::Pv => self.tvm_pv = value,
+                    TvmField::Pmt => self.tvm_pmt = value,
+                    TvmField::Fv => self.tvm_fv = value,
+                }
+            }
+            Message::TvmSolve(field) => {
+                use crate::engine::financial::{FinancialEngine, TvmParams, TvmSolveFor};
+
+                let parse = |s: &str| -> Option<f64> {
+                    if s.is_empty() { None } else { s.parse().ok() }
+                };
+
+                let params = TvmParams {
+                    n: if matches!(field, TvmField::N) { None } else { parse(&self.tvm_n) },
+                    rate: if matches!(field, TvmField::Rate) { None } else { parse(&self.tvm_rate) },
+                    pv: if matches!(field, TvmField::Pv) { None } else { parse(&self.tvm_pv) },
+                    pmt: if matches!(field, TvmField::Pmt) { None } else { parse(&self.tvm_pmt) },
+                    fv: if matches!(field, TvmField::Fv) { None } else { parse(&self.tvm_fv) },
+                };
+
+                let solve_for = match field {
+                    TvmField::N => TvmSolveFor::N,
+                    TvmField::Rate => TvmSolveFor::Rate,
+                    TvmField::Pv => TvmSolveFor::Pv,
+                    TvmField::Pmt => TvmSolveFor::Pmt,
+                    TvmField::Fv => TvmSolveFor::Fv,
+                };
+
+                match FinancialEngine.solve_tvm(params, solve_for) {
+                    Ok(result) => {
+                        let formatted = format!("{:.2}", result);
+                        match field {
+                            TvmField::N => self.tvm_n = formatted.clone(),
+                            TvmField::Rate => self.tvm_rate = formatted.clone(),
+                            TvmField::Pv => self.tvm_pv = formatted.clone(),
+                            TvmField::Pmt => self.tvm_pmt = formatted.clone(),
+                            TvmField::Fv => self.tvm_fv = formatted.clone(),
+                        }
+                        self.display = formatted;
+                    }
+                    Err(e) => {
+                        return self.update(Message::ShowToast(e.to_string()));
+                    }
+                }
+            }
+            Message::QuickFinancial(func) => {
+                use crate::engine::financial::FinancialEngine;
+                let engine = FinancialEngine;
+                if let Ok(value) = self.expression.parse::<f64>() {
+                    let result = match func {
+                        QuickFinancial::TaxAdd => engine.add_tax(value, self.config.tax_rate),
+                        QuickFinancial::TaxRemove => engine.remove_tax(value, self.config.tax_rate),
+                        _ => {
+                            return self.update(Message::ShowToast(
+                                "Enter cost and price separated by comma".into(),
+                            ));
+                        }
+                    };
+                    self.display = format!("{:.2}", result);
+                    self.expression = result.to_string();
+                } else {
+                    return self.update(Message::ShowToast(
+                        "Enter a valid number first".into(),
+                    ));
+                }
+            }
+            Message::ToggleSign => {
+                if self.expression.starts_with('-') {
+                    self.expression = self.expression[1..].to_string();
+                } else if !self.expression.is_empty() {
+                    self.expression = format!("-{}", self.expression);
+                }
             }
             Message::SwitchMode(mode) => {
                 self.mode = mode;
