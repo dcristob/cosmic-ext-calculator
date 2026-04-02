@@ -1,0 +1,10 @@
+app-title = Calculator
+view = View
+standard = Standard
+engineering = Engineering
+financial = Financial
+clear-history = Clear History
+about = About
+delete = Delete
+support = Support
+repository = Repository
