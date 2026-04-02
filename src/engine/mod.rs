@@ -1,3 +1,4 @@
+pub mod parser;
 pub mod standard;
 
 #[derive(Debug, Clone)]
