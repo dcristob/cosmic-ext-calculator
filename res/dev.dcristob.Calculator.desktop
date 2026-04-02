@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Calculator
+Comment=A multi-mode calculator for the COSMIC desktop
+Exec=cosmic-ext-calculator
+Icon=dev.dcristob.Calculator
+Terminal=false
+Type=Application
+Categories=Utility;Calculator;
+Keywords=calculator;math;finance;engineering;
