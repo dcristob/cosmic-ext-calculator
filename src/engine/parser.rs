@@ -130,12 +130,8 @@ impl Parser {
                     left /= right;
                 }
                 Some('%') => {
-                    // Disambiguate: modulus vs postfix percentage.
-                    // If '%' is followed by a digit or '(' it is modulus.
-                    // Otherwise it is postfix percentage (handled in postfix).
-                    // But we already consumed postfix in power→unary→postfix,
-                    // so if we see '%' here it was NOT consumed as postfix,
-                    // meaning it must be modulus.  Actually, let's look-ahead:
+                    // '%' followed by digit/paren/space → modulus; otherwise break
+                    // (postfix percentage is handled in the postfix() layer)
                     let after = self.input.get(self.pos + 1).copied();
                     let is_modulus = matches!(after, Some(c) if c.is_ascii_digit() || c == '(' || c == ' ');
                     if is_modulus {
