@@ -145,6 +145,8 @@ pub enum Message {
     TvmSolve(TvmField),
     QuickFinancial(QuickFinancial),
     ToggleSign,
+    HistorySelect(usize),
+    HistoryDelete(usize),
 }
 
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq)]
@@ -595,6 +597,20 @@ impl Application for CosmicCalculator {
                     self.mode_model.activate(entity);
                 }
             }
+            Message::HistorySelect(index) => {
+                if let Some(entry) = self.history.get(index) {
+                    self.expression = entry.result.clone();
+                    self.display = entry.result.clone();
+                }
+            }
+            Message::HistoryDelete(index) => {
+                if index < self.history.len() {
+                    self.history.remove(index);
+                    if let Some(config_handler) = &self.config_handler {
+                        let _ = self.config.set_history(config_handler, self.history.clone());
+                    }
+                }
+            }
         }
         cosmic::iced::Task::batch(tasks)
     }
@@ -611,7 +627,7 @@ impl Application for CosmicCalculator {
                 Message::ToggleContextDrawer,
             ),
             ContextPage::History => {
-                let content = widget::text("History - coming soon");
+                let content = ui::history::view(&self.history);
                 context_drawer::context_drawer(content, Message::ToggleContextDrawer)
             }
         })
