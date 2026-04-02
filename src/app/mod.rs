@@ -71,6 +71,24 @@ impl Operator {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+pub enum BitwiseOp {
+    And,
+    Or,
+    Xor,
+    Not,
+    Shl,
+    Shr,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BaseDisplay {
+    Hex,
+    Dec,
+    Oct,
+    Bin,
+}
+
 #[derive(Debug, Clone)]
 pub enum Message {
     ModeSelected(segmented_button::Entity),
@@ -97,6 +115,10 @@ pub enum Message {
     Undo,
     CopyResult,
     SwitchMode(Mode),
+    EngFunction(String),
+    AngleModeChanged(config::AngleMode),
+    BitwiseOp(BitwiseOp),
+    BaseDisplay(BaseDisplay),
 }
 
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq)]
@@ -247,7 +269,7 @@ impl Application for CosmicCalculator {
 
         let button_grid = match self.mode {
             Mode::Standard => ui::standard::view(),
-            Mode::Engineering => widget::text("Engineering mode - coming soon").into(),
+            Mode::Engineering => ui::engineering::view(self.config.angle_mode),
             Mode::Financial => widget::text("Financial mode - coming soon").into(),
         };
 
@@ -366,8 +388,24 @@ impl Application for CosmicCalculator {
             }
             Message::Evaluate => {
                 use crate::engine::Evaluate;
-                let engine = crate::engine::standard::StandardEngine;
-                match engine.evaluate(&self.expression) {
+                let result = match self.mode {
+                    Mode::Standard => {
+                        crate::engine::standard::StandardEngine.evaluate(&self.expression)
+                    }
+                    Mode::Engineering => {
+                        let angle = match self.config.angle_mode {
+                            config::AngleMode::Deg => crate::engine::AngleMode::Deg,
+                            config::AngleMode::Rad => crate::engine::AngleMode::Rad,
+                            config::AngleMode::Grad => crate::engine::AngleMode::Grad,
+                        };
+                        crate::engine::engineering::EngineeringEngine::new(angle)
+                            .evaluate(&self.expression)
+                    }
+                    Mode::Financial => {
+                        crate::engine::standard::StandardEngine.evaluate(&self.expression)
+                    }
+                };
+                match result {
                     Ok(result) => {
                         let entry = config::HistoryEntry {
                             expression: self.expression.clone(),
@@ -414,6 +452,29 @@ impl Application for CosmicCalculator {
             }
             Message::CopyResult => {
                 // Clipboard support comes later
+            }
+            Message::EngFunction(func) => {
+                self.expression.push_str(&func);
+            }
+            Message::AngleModeChanged(mode) => {
+                self.config.angle_mode = mode;
+                if let Some(config_handler) = &self.config_handler {
+                    let _ = self.config.set_angle_mode(config_handler, mode);
+                }
+            }
+            Message::BitwiseOp(op) => {
+                let symbol = match op {
+                    BitwiseOp::And => " AND ",
+                    BitwiseOp::Or => " OR ",
+                    BitwiseOp::Xor => " XOR ",
+                    BitwiseOp::Not => "NOT ",
+                    BitwiseOp::Shl => "<<",
+                    BitwiseOp::Shr => ">>",
+                };
+                self.expression.push_str(symbol);
+            }
+            Message::BaseDisplay(_base) => {
+                // Base display toggle - will show alt_bases from result
             }
             Message::SwitchMode(mode) => {
                 self.mode = mode;
