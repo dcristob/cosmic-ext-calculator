@@ -43,6 +43,34 @@ pub struct CosmicCalculator {
     input_id: widget::Id,
 }
 
+#[derive(Debug, Clone, Copy)]
+pub enum Operator {
+    Add,
+    Subtract,
+    Multiply,
+    Divide,
+}
+
+impl Operator {
+    pub fn display(&self) -> &'static str {
+        match self {
+            Operator::Add => "+",
+            Operator::Subtract => "−",
+            Operator::Multiply => "×",
+            Operator::Divide => "÷",
+        }
+    }
+
+    pub fn expression(&self) -> &'static str {
+        match self {
+            Operator::Add => "+",
+            Operator::Subtract => "-",
+            Operator::Multiply => "*",
+            Operator::Divide => "/",
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum Message {
     ModeSelected(segmented_button::Entity),
@@ -57,6 +85,17 @@ pub enum Message {
     CloseToast(ToastId),
     Open(String),
     Window,
+    Number(u8),
+    Operator(Operator),
+    Evaluate,
+    Clear,
+    Backspace,
+    Decimal,
+    Percent,
+    ParenOpen,
+    ParenClose,
+    Undo,
+    CopyResult,
 }
 
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq)]
@@ -282,6 +321,63 @@ impl Application for CosmicCalculator {
                 }
             }
             Message::Window => {}
+            Message::Number(n) => {
+                self.expression.push_str(&n.to_string());
+            }
+            Message::Operator(op) => {
+                self.expression.push_str(op.expression());
+            }
+            Message::Evaluate => {
+                use crate::engine::Evaluate;
+                let engine = crate::engine::standard::StandardEngine;
+                match engine.evaluate(&self.expression) {
+                    Ok(result) => {
+                        let entry = config::HistoryEntry {
+                            expression: self.expression.clone(),
+                            result: result.display.clone(),
+                            mode: self.mode,
+                            timestamp: std::time::SystemTime::now()
+                                .duration_since(std::time::UNIX_EPOCH)
+                                .unwrap_or_default()
+                                .as_secs() as i64,
+                        };
+                        self.history.push(entry);
+                        if let Some(config_handler) = &self.config_handler {
+                            let _ = self.config.set_history(config_handler, self.history.clone());
+                        }
+                        self.display = result.display;
+                        self.expression = result.value.to_string();
+                    }
+                    Err(e) => {
+                        return self.update(Message::ShowToast(e.to_string()));
+                    }
+                }
+            }
+            Message::Clear => {
+                self.expression.clear();
+                self.display = String::from("0");
+            }
+            Message::Backspace => {
+                self.expression.pop();
+            }
+            Message::Decimal => {
+                self.expression.push('.');
+            }
+            Message::Percent => {
+                self.expression.push('%');
+            }
+            Message::ParenOpen => {
+                self.expression.push('(');
+            }
+            Message::ParenClose => {
+                self.expression.push(')');
+            }
+            Message::Undo => {
+                self.expression.pop();
+            }
+            Message::CopyResult => {
+                // Clipboard support comes later
+            }
         }
         cosmic::iced::Task::batch(tasks)
     }
