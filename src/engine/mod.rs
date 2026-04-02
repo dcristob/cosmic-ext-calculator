@@ -1,5 +1,15 @@
+pub mod engineering;
 pub mod parser;
 pub mod standard;
+
+/// Angle mode for trigonometric functions.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum AngleMode {
+    #[default]
+    Deg,
+    Rad,
+    Grad,
+}
 
 #[derive(Debug, Clone)]
 pub struct CalcResult {
