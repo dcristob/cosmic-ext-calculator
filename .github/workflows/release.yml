@@ -1,0 +1,65 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential pkg-config \
+            libxkbcommon-dev libxkbcommon-x11-dev \
+            libwayland-dev libfontconfig1-dev libfreetype6-dev \
+            libgl1-mesa-dev libegl1-mesa-dev \
+            libgbm-dev libinput-dev libudev-dev
+
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build release
+        run: cargo build --release --locked
+
+      - name: Stage release artifacts
+        run: |
+          mkdir -p dist
+          cp target/release/cosmic-ext-calculator dist/
+          cp res/dev.dcristob.Calculator.desktop dist/
+          cp res/dev.dcristob.Calculator.metainfo.xml dist/
+          cp res/icons/hicolor/scalable/apps/dev.dcristob.Calculator.svg dist/
+
+      - name: Publish rolling "latest" release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: Latest build (main)
+          body: |
+            Rolling build from the tip of `main`. Replaced on every push.
+
+            Commit: `${{ github.sha }}`
+
+            To install, run:
+
+            ```sh
+            curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/install.sh | bash
+            ```
+          files: |
+            dist/cosmic-ext-calculator
+            dist/dev.dcristob.Calculator.desktop
+            dist/dev.dcristob.Calculator.metainfo.xml
+            dist/dev.dcristob.Calculator.svg
+          make_latest: "true"
+          prerelease: false

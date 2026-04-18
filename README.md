@@ -14,6 +14,24 @@ _Coming soon._
 
 ## Install
 
+### One-liner (prebuilt binary)
+
+Installs the latest release from GitHub into `~/.local/` (per-user) — no sudo needed:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/dcristob/cosmic-ext-calculator/main/install.sh | bash
+```
+
+System-wide (all users):
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/dcristob/cosmic-ext-calculator/main/install.sh | sudo bash
+```
+
+The script fetches the binary, `.desktop` entry, AppStream metainfo, and icon from the [latest release](https://github.com/dcristob/cosmic-ext-calculator/releases/latest), and refreshes the icon/desktop caches so the app appears in your launcher immediately.
+
+Binaries are built on Ubuntu (glibc-based). If your distro uses musl or an older glibc, build from source.
+
 ### From source
 
 Requires Rust (1.80+) and a COSMIC desktop session on Wayland.
@@ -22,19 +40,10 @@ Requires Rust (1.80+) and a COSMIC desktop session on Wayland.
 git clone https://github.com/dcristob/cosmic-ext-calculator.git
 cd cosmic-ext-calculator
 cargo build --release
-./target/release/cosmic-ext-calculator
+./install.sh    # installs the freshly built binary + desktop integration
 ```
 
-### Desktop entry
-
-To register the app with your desktop so it shows up in the launcher:
-
-```sh
-sudo install -Dm755 target/release/cosmic-ext-calculator /usr/bin/cosmic-ext-calculator
-sudo install -Dm644 res/dev.dcristob.Calculator.desktop /usr/share/applications/dev.dcristob.Calculator.desktop
-sudo install -Dm644 res/dev.dcristob.Calculator.metainfo.xml /usr/share/metainfo/dev.dcristob.Calculator.metainfo.xml
-sudo install -Dm644 res/icons/hicolor/scalable/apps/dev.dcristob.Calculator.svg /usr/share/icons/hicolor/scalable/apps/dev.dcristob.Calculator.svg
-```
+The `install.sh --local` flag installs from `target/release/` instead of fetching a release (use `sudo ./install.sh --local` for system-wide).
 
 ## Features
 
