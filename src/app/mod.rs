@@ -6,18 +6,17 @@ use std::collections::HashMap;
 
 use config::{CalculatorConfig, HistoryEntry, Mode, CONFIG_VERSION};
 use cosmic::app::context_drawer;
-use cosmic::iced::keyboard::{Key, Modifiers};
-use cosmic::iced::keyboard::Event as KeyEvent;
-use cosmic::iced::Event;
 use cosmic::iced::event;
+use cosmic::iced::keyboard::Event as KeyEvent;
+use cosmic::iced::keyboard::{Key, Modifiers};
+use cosmic::iced::Event;
 use cosmic::prelude::*;
 use cosmic::widget::about::About;
-use cosmic::widget::menu::{self, ItemHeight, ItemWidth};
-use cosmic::widget::segmented_button;
-use cosmic::widget::{self, toaster::ToastId};
-use cosmic::widget::wrapper::RcElementWrapper;
-use cosmic::{Application, Core};
 use cosmic::widget::menu::action::MenuAction as MenuActionTrait;
+use cosmic::widget::menu::{self, ItemHeight, ItemWidth};
+use cosmic::widget::wrapper::RcElementWrapper;
+use cosmic::widget::{self, toaster::ToastId};
+use cosmic::{Application, Core};
 
 use crate::core::icons;
 use crate::core::keybinds::key_binds;
@@ -35,7 +34,6 @@ pub struct CosmicCalculator {
     config_handler: Option<cosmic::cosmic_config::Config>,
     config: CalculatorConfig,
     mode: Mode,
-    mode_model: segmented_button::SingleSelectModel,
     expression: String,
     display: String,
     tvm_n: String,
@@ -43,9 +41,9 @@ pub struct CosmicCalculator {
     tvm_pv: String,
     tvm_pmt: String,
     tvm_fv: String,
+    active_tvm_field: TvmField,
     history: Vec<HistoryEntry>,
     toasts: widget::Toasts<Message>,
-    input_id: widget::Id,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -57,15 +55,6 @@ pub enum Operator {
 }
 
 impl Operator {
-    pub fn display(&self) -> &'static str {
-        match self {
-            Operator::Add => "+",
-            Operator::Subtract => "−",
-            Operator::Multiply => "×",
-            Operator::Divide => "÷",
-        }
-    }
-
     pub fn expression(&self) -> &'static str {
         match self {
             Operator::Add => "+",
@@ -113,8 +102,6 @@ pub enum QuickFinancial {
 
 #[derive(Debug, Clone)]
 pub enum Message {
-    ModeSelected(segmented_button::Entity),
-    Input(String),
     ToggleContextPage(ContextPage),
     ToggleContextDrawer,
     Key(Modifiers, Key),
@@ -143,10 +130,10 @@ pub enum Message {
     BaseDisplay(BaseDisplay),
     TvmFieldChanged(TvmField, String),
     TvmSolve(TvmField),
+    TvmSelectField(TvmField),
     QuickFinancial(QuickFinancial),
     ToggleSign,
     HistorySelect(usize),
-    HistoryDelete(usize),
 }
 
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq)]
@@ -170,6 +157,7 @@ pub enum MenuAction {
     SwitchEngineering,
     SwitchFinancial,
     Undo,
+    CopyResult,
 }
 
 impl MenuActionTrait for MenuAction {
@@ -184,7 +172,16 @@ impl MenuActionTrait for MenuAction {
             MenuAction::SwitchEngineering => Message::SwitchMode(Mode::Engineering),
             MenuAction::SwitchFinancial => Message::SwitchMode(Mode::Financial),
             MenuAction::Undo => Message::Undo,
+            MenuAction::CopyResult => Message::CopyResult,
         }
+    }
+}
+
+fn row_spacing_for(mode: Mode) -> u16 {
+    match mode {
+        Mode::Standard => 32,
+        Mode::Engineering => 6,
+        Mode::Financial => 4,
     }
 }
 
@@ -203,12 +200,6 @@ impl Application for CosmicCalculator {
     }
 
     fn init(core: Core, flags: Self::Flags) -> (Self, Task) {
-        let mode_model = segmented_button::Model::builder()
-            .insert(|b| b.text(fl!("standard")).data(Mode::Standard).activate())
-            .insert(|b| b.text(fl!("engineering")).data(Mode::Engineering))
-            .insert(|b| b.text(fl!("financial")).data(Mode::Financial))
-            .build();
-
         let about = About::default()
             .name(fl!("app-title"))
             .icon(widget::icon::from_name(Self::APP_ID))
@@ -236,7 +227,6 @@ impl Application for CosmicCalculator {
             config_handler: flags.config_handler,
             config: flags.config,
             mode: Mode::Standard,
-            mode_model,
             expression: String::new(),
             display: String::from("0"),
             tvm_n: String::new(),
@@ -244,9 +234,9 @@ impl Application for CosmicCalculator {
             tvm_pv: String::new(),
             tvm_pmt: String::new(),
             tvm_fv: String::new(),
+            active_tvm_field: TvmField::N,
             history,
             toasts: widget::toaster::Toasts::new(Message::CloseToast),
-            input_id: widget::Id::unique(),
         };
 
         let task = app.set_window_title(fl!("app-title"));
@@ -283,8 +273,30 @@ impl Application for CosmicCalculator {
     fn view(&self) -> Element<'_, Self::Message> {
         let spacing = cosmic::theme::active().cosmic().spacing;
 
-        let tab_bar = widget::segmented_button::horizontal(&self.mode_model)
-            .on_activate(Message::ModeSelected)
+        let tab = |label: &str, mode: Mode| -> Element<'_, Message> {
+            let style = if self.mode == mode {
+                cosmic::theme::Button::Suggested
+            } else {
+                cosmic::theme::Button::Standard
+            };
+            widget::button::custom(
+                widget::container(widget::text(label.to_string()).size(11.0))
+                    .center(cosmic::iced::Length::Fill)
+                    .width(cosmic::iced::Length::Fill)
+                    .height(cosmic::iced::Length::Fill),
+            )
+            .class(style)
+            .width(cosmic::iced::Length::Fill)
+            .height(cosmic::iced::Length::Fixed(28.0))
+            .on_press(Message::SwitchMode(mode))
+            .into()
+        };
+
+        let tab_bar = widget::row::with_capacity(3)
+            .push(tab(&fl!("standard"), Mode::Standard))
+            .push(tab(&fl!("engineering"), Mode::Engineering))
+            .push(tab(&fl!("financial"), Mode::Financial))
+            .spacing(spacing.space_xxs)
             .width(cosmic::iced::Length::Fill);
 
         let display = widget::column::with_capacity(2)
@@ -300,11 +312,18 @@ impl Application for CosmicCalculator {
             )
             .padding(spacing.space_s);
 
+        let row_spacing = row_spacing_for(self.mode);
         let button_grid = match self.mode {
-            Mode::Standard => ui::standard::view(),
-            Mode::Engineering => ui::engineering::view(self.config.angle_mode),
+            Mode::Standard => ui::standard::view(row_spacing),
+            Mode::Engineering => ui::engineering::view(self.config.angle_mode, row_spacing),
             Mode::Financial => ui::financial::view(
-                &self.tvm_n, &self.tvm_rate, &self.tvm_pv, &self.tvm_pmt, &self.tvm_fv,
+                self.active_tvm_field,
+                &self.tvm_n,
+                &self.tvm_rate,
+                &self.tvm_pv,
+                &self.tvm_pmt,
+                &self.tvm_fv,
+                row_spacing,
             ),
         };
 
@@ -312,10 +331,10 @@ impl Application for CosmicCalculator {
             .push(tab_bar)
             .push(display)
             .push(button_grid)
-            .push(
-                widget::row::with_capacity(1)
-                    .push(widget::toaster(&self.toasts, widget::Space::new().width(cosmic::iced::Length::Fill))),
-            )
+            .push(widget::row::with_capacity(1).push(widget::toaster(
+                &self.toasts,
+                widget::Space::new().width(cosmic::iced::Length::Fill),
+            )))
             .width(cosmic::iced::Length::Fill)
             .height(cosmic::iced::Length::Fill)
             .spacing(spacing.space_xs)
@@ -326,15 +345,6 @@ impl Application for CosmicCalculator {
     fn update(&mut self, message: Self::Message) -> Task {
         let mut tasks = vec![];
         match message {
-            Message::ModeSelected(entity) => {
-                self.mode_model.activate(entity);
-                if let Some(mode) = self.mode_model.data::<Mode>(entity) {
-                    self.mode = *mode;
-                }
-            }
-            Message::Input(value) => {
-                self.expression = value;
-            }
             Message::ToggleContextPage(context_page) => {
                 if self.context_page == context_page {
                     self.core.window.show_context = !self.core.window.show_context;
@@ -453,7 +463,9 @@ impl Application for CosmicCalculator {
                         };
                         self.history.push(entry);
                         if let Some(config_handler) = &self.config_handler {
-                            let _ = self.config.set_history(config_handler, self.history.clone());
+                            let _ = self
+                                .config
+                                .set_history(config_handler, self.history.clone());
                         }
                         self.display = result.display;
                         self.expression = result.value.to_string();
@@ -511,28 +523,53 @@ impl Application for CosmicCalculator {
             Message::BaseDisplay(_base) => {
                 // Base display toggle - will show alt_bases from result
             }
-            Message::TvmFieldChanged(field, value) => {
-                match field {
-                    TvmField::N => self.tvm_n = value,
-                    TvmField::Rate => self.tvm_rate = value,
-                    TvmField::Pv => self.tvm_pv = value,
-                    TvmField::Pmt => self.tvm_pmt = value,
-                    TvmField::Fv => self.tvm_fv = value,
-                }
+            Message::TvmSelectField(field) => {
+                self.active_tvm_field = field;
             }
+            Message::TvmFieldChanged(field, value) => match field {
+                TvmField::N => self.tvm_n = value,
+                TvmField::Rate => self.tvm_rate = value,
+                TvmField::Pv => self.tvm_pv = value,
+                TvmField::Pmt => self.tvm_pmt = value,
+                TvmField::Fv => self.tvm_fv = value,
+            },
             Message::TvmSolve(field) => {
                 use crate::engine::financial::{FinancialEngine, TvmParams, TvmSolveFor};
 
                 let parse = |s: &str| -> Option<f64> {
-                    if s.is_empty() { None } else { s.parse().ok() }
+                    if s.is_empty() {
+                        None
+                    } else {
+                        s.parse().ok()
+                    }
                 };
 
                 let params = TvmParams {
-                    n: if matches!(field, TvmField::N) { None } else { parse(&self.tvm_n) },
-                    rate: if matches!(field, TvmField::Rate) { None } else { parse(&self.tvm_rate) },
-                    pv: if matches!(field, TvmField::Pv) { None } else { parse(&self.tvm_pv) },
-                    pmt: if matches!(field, TvmField::Pmt) { None } else { parse(&self.tvm_pmt) },
-                    fv: if matches!(field, TvmField::Fv) { None } else { parse(&self.tvm_fv) },
+                    n: if matches!(field, TvmField::N) {
+                        None
+                    } else {
+                        parse(&self.tvm_n)
+                    },
+                    rate: if matches!(field, TvmField::Rate) {
+                        None
+                    } else {
+                        parse(&self.tvm_rate)
+                    },
+                    pv: if matches!(field, TvmField::Pv) {
+                        None
+                    } else {
+                        parse(&self.tvm_pv)
+                    },
+                    pmt: if matches!(field, TvmField::Pmt) {
+                        None
+                    } else {
+                        parse(&self.tvm_pmt)
+                    },
+                    fv: if matches!(field, TvmField::Fv) {
+                        None
+                    } else {
+                        parse(&self.tvm_fv)
+                    },
                 };
 
                 let solve_for = match field {
@@ -576,9 +613,7 @@ impl Application for CosmicCalculator {
                     self.display = format!("{:.2}", result);
                     self.expression = result.to_string();
                 } else {
-                    return self.update(Message::ShowToast(
-                        "Enter a valid number first".into(),
-                    ));
+                    return self.update(Message::ShowToast("Enter a valid number first".into()));
                 }
             }
             Message::ToggleSign => {
@@ -590,25 +625,11 @@ impl Application for CosmicCalculator {
             }
             Message::SwitchMode(mode) => {
                 self.mode = mode;
-                let entity = self.mode_model.iter().find(|&entity| {
-                    self.mode_model.data::<Mode>(entity) == Some(&mode)
-                });
-                if let Some(entity) = entity {
-                    self.mode_model.activate(entity);
-                }
             }
             Message::HistorySelect(index) => {
                 if let Some(entry) = self.history.get(index) {
                     self.expression = entry.result.clone();
                     self.display = entry.result.clone();
-                }
-            }
-            Message::HistoryDelete(index) => {
-                if index < self.history.len() {
-                    self.history.remove(index);
-                    if let Some(config_handler) = &self.config_handler {
-                        let _ = self.config.set_history(config_handler, self.history.clone());
-                    }
                 }
             }
         }
@@ -636,9 +657,7 @@ impl Application for CosmicCalculator {
     fn subscription(&self) -> cosmic::iced::Subscription<Self::Message> {
         let subscriptions = vec![
             event::listen_with(|event, status, _id| match event {
-                Event::Keyboard(KeyEvent::KeyPressed {
-                    key, modifiers, ..
-                }) => match status {
+                Event::Keyboard(KeyEvent::KeyPressed { key, modifiers, .. }) => match status {
                     event::Status::Ignored => Some(Message::Key(modifiers, key)),
                     event::Status::Captured => None,
                 },

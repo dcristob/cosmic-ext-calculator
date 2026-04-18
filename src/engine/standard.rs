@@ -1,5 +1,5 @@
-use super::{CalcError, CalcResult, Evaluate};
 use super::parser::Parser;
+use super::{CalcError, CalcResult, Evaluate};
 
 pub struct StandardEngine;
 

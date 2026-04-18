@@ -22,10 +22,16 @@ impl FinancialEngine {
     pub fn solve_tvm(&self, p: TvmParams, solve_for: TvmSolveFor) -> Result<f64, CalcError> {
         match solve_for {
             TvmSolveFor::Fv => {
-                let n = p.n.ok_or_else(|| CalcError::InvalidExpression("missing N".into()))?;
-                let rate = p.rate.ok_or_else(|| CalcError::InvalidExpression("missing rate".into()))?;
-                let pv = p.pv.ok_or_else(|| CalcError::InvalidExpression("missing PV".into()))?;
-                let pmt = p.pmt.ok_or_else(|| CalcError::InvalidExpression("missing PMT".into()))?;
+                let n =
+                    p.n.ok_or_else(|| CalcError::InvalidExpression("missing N".into()))?;
+                let rate = p
+                    .rate
+                    .ok_or_else(|| CalcError::InvalidExpression("missing rate".into()))?;
+                let pv =
+                    p.pv.ok_or_else(|| CalcError::InvalidExpression("missing PV".into()))?;
+                let pmt = p
+                    .pmt
+                    .ok_or_else(|| CalcError::InvalidExpression("missing PMT".into()))?;
                 let i = rate / 100.0;
                 if i == 0.0 {
                     Ok(-(pv + pmt * n))
@@ -35,10 +41,16 @@ impl FinancialEngine {
                 }
             }
             TvmSolveFor::Pv => {
-                let n = p.n.ok_or_else(|| CalcError::InvalidExpression("missing N".into()))?;
-                let rate = p.rate.ok_or_else(|| CalcError::InvalidExpression("missing rate".into()))?;
-                let pmt = p.pmt.ok_or_else(|| CalcError::InvalidExpression("missing PMT".into()))?;
-                let fv = p.fv.ok_or_else(|| CalcError::InvalidExpression("missing FV".into()))?;
+                let n =
+                    p.n.ok_or_else(|| CalcError::InvalidExpression("missing N".into()))?;
+                let rate = p
+                    .rate
+                    .ok_or_else(|| CalcError::InvalidExpression("missing rate".into()))?;
+                let pmt = p
+                    .pmt
+                    .ok_or_else(|| CalcError::InvalidExpression("missing PMT".into()))?;
+                let fv =
+                    p.fv.ok_or_else(|| CalcError::InvalidExpression("missing FV".into()))?;
                 let i = rate / 100.0;
                 if i == 0.0 {
                     Ok(-(fv + pmt * n))
@@ -48,10 +60,15 @@ impl FinancialEngine {
                 }
             }
             TvmSolveFor::Pmt => {
-                let n = p.n.ok_or_else(|| CalcError::InvalidExpression("missing N".into()))?;
-                let rate = p.rate.ok_or_else(|| CalcError::InvalidExpression("missing rate".into()))?;
-                let pv = p.pv.ok_or_else(|| CalcError::InvalidExpression("missing PV".into()))?;
-                let fv = p.fv.ok_or_else(|| CalcError::InvalidExpression("missing FV".into()))?;
+                let n =
+                    p.n.ok_or_else(|| CalcError::InvalidExpression("missing N".into()))?;
+                let rate = p
+                    .rate
+                    .ok_or_else(|| CalcError::InvalidExpression("missing rate".into()))?;
+                let pv =
+                    p.pv.ok_or_else(|| CalcError::InvalidExpression("missing PV".into()))?;
+                let fv =
+                    p.fv.ok_or_else(|| CalcError::InvalidExpression("missing FV".into()))?;
                 let i = rate / 100.0;
                 if i == 0.0 {
                     if n == 0.0 {
@@ -64,10 +81,16 @@ impl FinancialEngine {
                 }
             }
             TvmSolveFor::N => {
-                let rate = p.rate.ok_or_else(|| CalcError::InvalidExpression("missing rate".into()))?;
-                let pv = p.pv.ok_or_else(|| CalcError::InvalidExpression("missing PV".into()))?;
-                let pmt = p.pmt.ok_or_else(|| CalcError::InvalidExpression("missing PMT".into()))?;
-                let fv = p.fv.ok_or_else(|| CalcError::InvalidExpression("missing FV".into()))?;
+                let rate = p
+                    .rate
+                    .ok_or_else(|| CalcError::InvalidExpression("missing rate".into()))?;
+                let pv =
+                    p.pv.ok_or_else(|| CalcError::InvalidExpression("missing PV".into()))?;
+                let pmt = p
+                    .pmt
+                    .ok_or_else(|| CalcError::InvalidExpression("missing PMT".into()))?;
+                let fv =
+                    p.fv.ok_or_else(|| CalcError::InvalidExpression("missing FV".into()))?;
                 let i = rate / 100.0;
                 if i == 0.0 {
                     if pmt == 0.0 {
@@ -82,7 +105,9 @@ impl FinancialEngine {
                     }
                     let ratio = numerator / denominator;
                     if ratio <= 0.0 {
-                        return Err(CalcError::DomainError("invalid parameters for N solve".into()));
+                        return Err(CalcError::DomainError(
+                            "invalid parameters for N solve".into(),
+                        ));
                     }
                     let result = ratio.ln() / (1.0 + i).ln();
                     if result.is_nan() || result.is_infinite() {
@@ -92,10 +117,15 @@ impl FinancialEngine {
                 }
             }
             TvmSolveFor::Rate => {
-                let n = p.n.ok_or_else(|| CalcError::InvalidExpression("missing N".into()))?;
-                let pv = p.pv.ok_or_else(|| CalcError::InvalidExpression("missing PV".into()))?;
-                let pmt = p.pmt.ok_or_else(|| CalcError::InvalidExpression("missing PMT".into()))?;
-                let fv = p.fv.ok_or_else(|| CalcError::InvalidExpression("missing FV".into()))?;
+                let n =
+                    p.n.ok_or_else(|| CalcError::InvalidExpression("missing N".into()))?;
+                let pv =
+                    p.pv.ok_or_else(|| CalcError::InvalidExpression("missing PV".into()))?;
+                let pmt = p
+                    .pmt
+                    .ok_or_else(|| CalcError::InvalidExpression("missing PMT".into()))?;
+                let fv =
+                    p.fv.ok_or_else(|| CalcError::InvalidExpression("missing FV".into()))?;
 
                 let mut i = 0.1_f64;
                 let max_iter = 1000;
@@ -124,10 +154,12 @@ impl FinancialEngine {
         }
     }
 
+    #[allow(dead_code)]
     pub fn margin(&self, cost: f64, price: f64) -> f64 {
         (price - cost) / price * 100.0
     }
 
+    #[allow(dead_code)]
     pub fn markup(&self, cost: f64, price: f64) -> f64 {
         (price - cost) / cost * 100.0
     }

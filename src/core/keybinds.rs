@@ -25,6 +25,7 @@ pub fn key_binds() -> HashMap<KeyBind, MenuAction> {
     bind!([Ctrl], Key::Character("3".into()), SwitchFinancial);
     bind!([Ctrl], Key::Character("h".into()), ToggleHistory);
     bind!([Ctrl], Key::Character("z".into()), Undo);
+    bind!([Ctrl], Key::Character("c".into()), CopyResult);
     bind!([Ctrl, Shift], Key::Character("C".into()), ClearHistory);
     bind!([Ctrl], Key::Character("i".into()), About);
 

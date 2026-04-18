@@ -1,7 +1,6 @@
 use cosmic::{
-    Application,
-    cosmic_config::{self, Config, CosmicConfigEntry, cosmic_config_derive::CosmicConfigEntry},
-    theme,
+    cosmic_config::{self, cosmic_config_derive::CosmicConfigEntry, Config, CosmicConfigEntry},
+    theme, Application,
 };
 use serde::{Deserialize, Serialize};
 

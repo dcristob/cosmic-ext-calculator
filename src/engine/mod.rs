@@ -16,10 +16,12 @@ pub enum AngleMode {
 pub struct CalcResult {
     pub value: f64,
     pub display: String,
+    #[allow(dead_code)]
     pub alt_bases: Option<AltBases>,
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct AltBases {
     pub hex: String,
     pub oct: String,

@@ -133,7 +133,8 @@ impl Parser {
                     // '%' followed by digit/paren/space → modulus; otherwise break
                     // (postfix percentage is handled in the postfix() layer)
                     let after = self.input.get(self.pos + 1).copied();
-                    let is_modulus = matches!(after, Some(c) if c.is_ascii_digit() || c == '(' || c == ' ');
+                    let is_modulus =
+                        matches!(after, Some(c) if c.is_ascii_digit() || c == '(' || c == ' ');
                     if is_modulus {
                         self.advance(); // consume '%'
                         let right = self.power(func_eval)?;

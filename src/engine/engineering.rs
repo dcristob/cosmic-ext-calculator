@@ -102,9 +102,7 @@ impl EngineeringEngine {
             "sqrt" => {
                 let v = expect_one(args)?;
                 if v < 0.0 {
-                    return Err(CalcError::DomainError(
-                        "sqrt of negative number".into(),
-                    ));
+                    return Err(CalcError::DomainError("sqrt of negative number".into()));
                 }
                 Ok(v.sqrt())
             }
@@ -174,9 +172,8 @@ impl EngineeringEngine {
 impl Evaluate for EngineeringEngine {
     fn evaluate(&self, expr: &str) -> Result<CalcResult, CalcError> {
         let mut parser = Parser::new();
-        let value = parser.parse_with_functions(expr, |name, args| {
-            self.eval_function(name, args)
-        })?;
+        let value =
+            parser.parse_with_functions(expr, |name, args| self.eval_function(name, args))?;
 
         if value.is_infinite() {
             return Err(CalcError::Overflow);

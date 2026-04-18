@@ -6,6 +6,9 @@ use cosmic::theme;
 use crate::app::config::AngleMode;
 use crate::app::{BaseDisplay, BitwiseOp, Message, Operator};
 
+const FUNC_ROW_HEIGHT: f32 = 32.0;
+const NUM_ROW_HEIGHT: f32 = 40.0;
+
 fn func_button<'a>(label: &str, message: Message, style: theme::Button) -> Element<'a, Message> {
     widget::button::custom(
         widget::container(widget::text(label.to_string()).size(13.0))
@@ -34,7 +37,7 @@ fn calc_button<'a>(label: &str, message: Message, style: theme::Button) -> Eleme
     .into()
 }
 
-pub fn view<'a>(angle_mode: AngleMode) -> Element<'a, Message> {
+pub fn view<'a>(angle_mode: AngleMode, row_spacing: u16) -> Element<'a, Message> {
     let spacing = cosmic::theme::active().cosmic().spacing;
 
     // Angle mode bar (3 buttons)
@@ -60,7 +63,7 @@ pub fn view<'a>(angle_mode: AngleMode) -> Element<'a, Message> {
         .push(func_button("GRAD", Message::AngleModeChanged(AngleMode::Grad), grad_style))
         .spacing(spacing.space_xxs)
         .width(Length::Fill)
-        .height(Length::Fill);
+        .height(FUNC_ROW_HEIGHT);
 
     // Trig row (6 cols)
     let trig_row = widget::row::with_capacity(6)
@@ -72,7 +75,7 @@ pub fn view<'a>(angle_mode: AngleMode) -> Element<'a, Message> {
         .push(func_button("tan⁻¹", Message::EngFunction("atan(".into()), theme::Button::Standard))
         .spacing(spacing.space_xxs)
         .width(Length::Fill)
-        .height(Length::Fill);
+        .height(FUNC_ROW_HEIGHT);
 
     // Math row (6 cols)
     let math_row = widget::row::with_capacity(6)
@@ -84,7 +87,7 @@ pub fn view<'a>(angle_mode: AngleMode) -> Element<'a, Message> {
         .push(func_button("n!", Message::EngFunction("!".into()), theme::Button::Standard))
         .spacing(spacing.space_xxs)
         .width(Length::Fill)
-        .height(Length::Fill);
+        .height(FUNC_ROW_HEIGHT);
 
     // Bitwise row (6 cols)
     let bitwise_row = widget::row::with_capacity(6)
@@ -96,7 +99,7 @@ pub fn view<'a>(angle_mode: AngleMode) -> Element<'a, Message> {
         .push(func_button("≫", Message::BitwiseOp(BitwiseOp::Shr), theme::Button::Standard))
         .spacing(spacing.space_xxs)
         .width(Length::Fill)
-        .height(Length::Fill);
+        .height(FUNC_ROW_HEIGHT);
 
     // Base/constants row (6 cols)
     let base_row = widget::row::with_capacity(6)
@@ -108,7 +111,7 @@ pub fn view<'a>(angle_mode: AngleMode) -> Element<'a, Message> {
         .push(func_button("e", Message::EngFunction("e".into()), theme::Button::Standard))
         .spacing(spacing.space_xxs)
         .width(Length::Fill)
-        .height(Length::Fill);
+        .height(FUNC_ROW_HEIGHT);
 
     // Standard numpad (4 cols)
     let num_row1 = widget::row::with_capacity(4)
@@ -118,7 +121,7 @@ pub fn view<'a>(angle_mode: AngleMode) -> Element<'a, Message> {
         .push(calc_button("÷", Message::Operator(Operator::Divide), theme::Button::Standard))
         .spacing(spacing.space_xxs)
         .width(Length::Fill)
-        .height(Length::Fill);
+        .height(NUM_ROW_HEIGHT);
 
     let num_row2 = widget::row::with_capacity(4)
         .push(calc_button("7", Message::Number(7), theme::Button::Standard))
@@ -127,7 +130,7 @@ pub fn view<'a>(angle_mode: AngleMode) -> Element<'a, Message> {
         .push(calc_button("×", Message::Operator(Operator::Multiply), theme::Button::Standard))
         .spacing(spacing.space_xxs)
         .width(Length::Fill)
-        .height(Length::Fill);
+        .height(NUM_ROW_HEIGHT);
 
     let num_row3 = widget::row::with_capacity(4)
         .push(calc_button("4", Message::Number(4), theme::Button::Standard))
@@ -136,7 +139,7 @@ pub fn view<'a>(angle_mode: AngleMode) -> Element<'a, Message> {
         .push(calc_button("−", Message::Operator(Operator::Subtract), theme::Button::Standard))
         .spacing(spacing.space_xxs)
         .width(Length::Fill)
-        .height(Length::Fill);
+        .height(NUM_ROW_HEIGHT);
 
     let num_row4 = widget::row::with_capacity(4)
         .push(calc_button("1", Message::Number(1), theme::Button::Standard))
@@ -145,7 +148,7 @@ pub fn view<'a>(angle_mode: AngleMode) -> Element<'a, Message> {
         .push(calc_button("+", Message::Operator(Operator::Add), theme::Button::Standard))
         .spacing(spacing.space_xxs)
         .width(Length::Fill)
-        .height(Length::Fill);
+        .height(NUM_ROW_HEIGHT);
 
     let num_row5 = widget::row::with_capacity(4)
         .push(calc_button("0", Message::Number(0), theme::Button::Standard))
@@ -154,7 +157,7 @@ pub fn view<'a>(angle_mode: AngleMode) -> Element<'a, Message> {
         .push(calc_button("=", Message::Evaluate, theme::Button::Suggested))
         .spacing(spacing.space_xxs)
         .width(Length::Fill)
-        .height(Length::Fill);
+        .height(NUM_ROW_HEIGHT);
 
     widget::column::with_capacity(11)
         .push(angle_row)
@@ -167,8 +170,7 @@ pub fn view<'a>(angle_mode: AngleMode) -> Element<'a, Message> {
         .push(num_row3)
         .push(num_row4)
         .push(num_row5)
-        .spacing(spacing.space_xxs)
+        .spacing(row_spacing)
         .width(Length::Fill)
-        .height(Length::Fill)
         .into()
 }
