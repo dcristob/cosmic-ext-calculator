@@ -33,6 +33,7 @@ To register the app with your desktop so it shows up in the launcher:
 sudo install -Dm755 target/release/cosmic-ext-calculator /usr/bin/cosmic-ext-calculator
 sudo install -Dm644 res/dev.dcristob.Calculator.desktop /usr/share/applications/dev.dcristob.Calculator.desktop
 sudo install -Dm644 res/dev.dcristob.Calculator.metainfo.xml /usr/share/metainfo/dev.dcristob.Calculator.metainfo.xml
+sudo install -Dm644 res/icons/hicolor/scalable/apps/dev.dcristob.Calculator.svg /usr/share/icons/hicolor/scalable/apps/dev.dcristob.Calculator.svg
 ```
 
 ## Features
