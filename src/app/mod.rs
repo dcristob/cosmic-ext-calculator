@@ -207,12 +207,12 @@ impl Application for CosmicCalculator {
             .license("GPL-3.0-only")
             .links([
                 (
-                    fl!("support"),
-                    "https://github.com/dcristob/cosmic-calculator/issues",
+                    fl!("repository"),
+                    "https://github.com/dcristob/cosmic-ext-calculator",
                 ),
                 (
-                    fl!("repository"),
-                    "https://github.com/dcristob/cosmic-calculator",
+                    fl!("support"),
+                    "https://github.com/dcristob/cosmic-ext-calculator/issues",
                 ),
             ]);
 
@@ -246,7 +246,7 @@ impl Application for CosmicCalculator {
 
     fn header_start(&self) -> Vec<Element<'_, Self::Message>> {
         let menu_bar = menu::bar(vec![menu::Tree::with_children(
-            RcElementWrapper::new(Element::from(menu::root(fl!("view")))),
+            RcElementWrapper::new(Element::from(menu::root(fl!("menu-root")))),
             menu::items(
                 &self.key_binds,
                 vec![

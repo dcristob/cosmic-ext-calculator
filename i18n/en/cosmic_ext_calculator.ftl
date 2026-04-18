@@ -1,5 +1,5 @@
 app-title = Calculator
-view = View
+menu-root = About
 standard = Standard
 engineering = Engineering
 financial = Financial
