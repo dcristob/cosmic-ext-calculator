@@ -163,3 +163,26 @@ fn test_factorial_170_ok() {
     let engine = EngineeringEngine::new(AngleMode::Deg);
     assert!(engine.evaluate("fact(170)").is_ok());
 }
+
+// The engineering UI now wraps a pending operand as a function argument
+// (e.g. `34` + cos -> `cos(34)`). These lock in that the shapes it generates
+// parse and evaluate correctly, including the mid-expression form.
+#[test]
+fn test_wrapped_prefix_function() {
+    let engine = EngineeringEngine::new(AngleMode::Deg);
+    assert!(approx_eq(engine.evaluate("cos(0)").unwrap().value, 1.0));
+}
+
+#[test]
+fn test_wrapped_prefix_function_mid_expression() {
+    let engine = EngineeringEngine::new(AngleMode::Deg);
+    // 2 + cos(0) = 3
+    assert!(approx_eq(engine.evaluate("2+cos(0)").unwrap().value, 3.0));
+}
+
+#[test]
+fn test_wrapped_prefix_function_negative_argument() {
+    let engine = EngineeringEngine::new(AngleMode::Deg);
+    // cos is even: cos(-90) == cos(90) == 0
+    assert!(approx_eq(engine.evaluate("cos(-90)").unwrap().value, 0.0));
+}
