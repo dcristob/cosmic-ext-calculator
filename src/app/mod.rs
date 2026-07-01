@@ -36,6 +36,10 @@ pub struct CosmicCalculator {
     mode: Mode,
     expression: String,
     display: String,
+    /// Set after a successful `Evaluate`. While true, the next digit/decimal
+    /// starts a fresh expression instead of appending to the carried-over
+    /// result, while a following operator continues chaining from that result.
+    just_evaluated: bool,
     tvm_n: String,
     tvm_rate: String,
     tvm_pv: String,
@@ -185,6 +189,18 @@ fn row_spacing_for(mode: Mode) -> u16 {
     }
 }
 
+impl CosmicCalculator {
+    /// If the last action was an evaluation, discard the carried-over result so
+    /// the incoming operand starts a brand new expression. Called before
+    /// appending a digit, decimal, opening paren, or function.
+    fn start_fresh_if_evaluated(&mut self) {
+        if self.just_evaluated {
+            self.expression.clear();
+            self.just_evaluated = false;
+        }
+    }
+}
+
 impl Application for CosmicCalculator {
     type Executor = cosmic::executor::Default;
     type Flags = Flags;
@@ -229,6 +245,7 @@ impl Application for CosmicCalculator {
             mode: Mode::Standard,
             expression: String::new(),
             display: String::from("0"),
+            just_evaluated: false,
             tvm_n: String::new(),
             tvm_rate: String::new(),
             tvm_pv: String::new(),
@@ -426,9 +443,12 @@ impl Application for CosmicCalculator {
             }
             Message::Window => {}
             Message::Number(n) => {
+                self.start_fresh_if_evaluated();
                 self.expression.push_str(&n.to_string());
             }
             Message::Operator(op) => {
+                // Chain from the previous result rather than starting over.
+                self.just_evaluated = false;
                 self.expression.push_str(op.expression());
             }
             Message::Evaluate => {
@@ -469,6 +489,7 @@ impl Application for CosmicCalculator {
                         }
                         self.display = result.display;
                         self.expression = result.value.to_string();
+                        self.just_evaluated = true;
                     }
                     Err(e) => {
                         return self.update(Message::ShowToast(e.to_string()));
@@ -478,20 +499,28 @@ impl Application for CosmicCalculator {
             Message::Clear => {
                 self.expression.clear();
                 self.display = String::from("0");
+                self.just_evaluated = false;
             }
             Message::Backspace => {
+                self.just_evaluated = false;
                 self.expression.pop();
             }
             Message::Decimal => {
+                self.start_fresh_if_evaluated();
                 self.expression.push('.');
             }
             Message::Percent => {
+                self.just_evaluated = false;
                 self.expression.push('%');
             }
             Message::ParenOpen => {
+                // An opening paren begins a new sub-expression, so start fresh
+                // after a result instead of turning "7" into "7(".
+                self.start_fresh_if_evaluated();
                 self.expression.push('(');
             }
             Message::ParenClose => {
+                self.just_evaluated = false;
                 self.expression.push(')');
             }
             Message::Undo => {
@@ -501,6 +530,8 @@ impl Application for CosmicCalculator {
                 // Clipboard support comes later
             }
             Message::EngFunction(func) => {
+                // Functions like "sin(" begin a new operand, so start fresh.
+                self.start_fresh_if_evaluated();
                 self.expression.push_str(&func);
             }
             Message::AngleModeChanged(mode) => {
@@ -518,6 +549,7 @@ impl Application for CosmicCalculator {
                     BitwiseOp::Shl => "<<",
                     BitwiseOp::Shr => ">>",
                 };
+                self.just_evaluated = false;
                 self.expression.push_str(symbol);
             }
             Message::BaseDisplay(_base) => {
@@ -657,8 +689,16 @@ impl Application for CosmicCalculator {
     fn subscription(&self) -> cosmic::iced::Subscription<Self::Message> {
         let subscriptions = vec![
             event::listen_with(|event, status, _id| match event {
-                Event::Keyboard(KeyEvent::KeyPressed { key, modifiers, .. }) => match status {
-                    event::Status::Ignored => Some(Message::Key(modifiers, key)),
+                Event::Keyboard(KeyEvent::KeyPressed {
+                    modified_key,
+                    modifiers,
+                    ..
+                }) => match status {
+                    // Use `modified_key` (Shift/AltGr applied) rather than the raw
+                    // `key`, otherwise on layouts where symbols require Shift the
+                    // base key leaks through: e.g. on a Spanish keyboard `*` is
+                    // Shift+`+` and `/` is Shift+`7`, so `key` would report `+`/`7`.
+                    event::Status::Ignored => Some(Message::Key(modifiers, modified_key)),
                     event::Status::Captured => None,
                 },
                 Event::Keyboard(KeyEvent::ModifiersChanged(modifiers)) => {
