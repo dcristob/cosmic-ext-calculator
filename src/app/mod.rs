@@ -199,6 +199,31 @@ impl CosmicCalculator {
             self.just_evaluated = false;
         }
     }
+
+    /// Apply a prefix function like "cos(" to the current operand, wrapping it
+    /// as the argument (`34` -> `cos(34)`) instead of leaving a dangling
+    /// `34cos(`. Right after an evaluation the whole result is wrapped,
+    /// including a leading sign (`-7` -> `cos(-7)`). With no trailing operand
+    /// the function is appended open, ready for input (`2+` -> `2+cos(`).
+    fn apply_prefix_function(&mut self, func: &str) {
+        if self.just_evaluated {
+            self.expression = format!("{}{})", func, self.expression);
+            self.just_evaluated = false;
+            return;
+        }
+        let trailing_start = self
+            .expression
+            .rfind(|c: char| !c.is_ascii_digit() && c != '.')
+            .map_or(0, |i| i + 1);
+        if trailing_start < self.expression.len() {
+            let number = self.expression.split_off(trailing_start);
+            self.expression.push_str(func);
+            self.expression.push_str(&number);
+            self.expression.push(')');
+        } else {
+            self.expression.push_str(func);
+        }
+    }
 }
 
 impl Application for CosmicCalculator {
@@ -530,9 +555,20 @@ impl Application for CosmicCalculator {
                 // Clipboard support comes later
             }
             Message::EngFunction(func) => {
-                // Functions like "sin(" begin a new operand, so start fresh.
-                self.start_fresh_if_evaluated();
-                self.expression.push_str(&func);
+                if func.ends_with('(') {
+                    // Prefix function (sin/cos/log/sqrt...): apply to the
+                    // current operand, wrapping it as the argument.
+                    self.apply_prefix_function(&func);
+                } else if func.starts_with('^') || func == "!" {
+                    // Postfix/infix operator (x², xʸ, n!): operates on the
+                    // preceding number or result, so keep it and append.
+                    self.just_evaluated = false;
+                    self.expression.push_str(&func);
+                } else {
+                    // Constant (π, e): behaves like an entered value.
+                    self.start_fresh_if_evaluated();
+                    self.expression.push_str(&func);
+                }
             }
             Message::AngleModeChanged(mode) => {
                 self.config.angle_mode = mode;
