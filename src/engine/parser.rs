@@ -193,7 +193,21 @@ impl Parser {
     where
         F: Fn(&str, &[f64]) -> Result<f64, CalcError>,
     {
-        let val = self.implicit_mul(func_eval)?;
+        let mut val = self.implicit_mul(func_eval)?;
+
+        // Factorial: highest-precedence postfix (binds tighter than '^'), and
+        // may repeat (e.g. `5!!`). Delegates to the engine's `fact` resolver so
+        // the non-negative-integer/overflow guards live in one place.
+        loop {
+            self.skip_whitespace();
+            if self.peek() == Some('!') {
+                self.advance();
+                val = func_eval("fact", &[val])?;
+            } else {
+                break;
+            }
+        }
+
         self.skip_whitespace();
         if self.peek() == Some('%') {
             // Percentage postfix only if NOT followed by digit or '(' (those are modulus)
