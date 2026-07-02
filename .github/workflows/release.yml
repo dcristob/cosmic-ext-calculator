@@ -14,6 +14,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Compute build metadata
+        id: meta
+        run: |
+          echo "short_sha=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+          echo "date=$(date -u +'%Y-%m-%d %H:%M UTC')" >> "$GITHUB_OUTPUT"
+
       - name: Install system dependencies
         run: |
           sudo apt-get update
@@ -45,11 +51,12 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: latest
-          name: Latest build (main)
+          name: "Latest build (main) — ${{ steps.meta.outputs.date }}"
           body: |
             Rolling build from the tip of `main`. Replaced on every push.
 
-            Commit: `${{ github.sha }}`
+            Built: ${{ steps.meta.outputs.date }}
+            Commit: `${{ steps.meta.outputs.short_sha }}` (`${{ github.sha }}`)
 
             To install, run:
 
