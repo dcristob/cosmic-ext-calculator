@@ -214,3 +214,26 @@ fn test_factorial_postfix_domain_errors() {
     assert!(engine.evaluate("3.5!").is_err()); // non-integer
     assert!(engine.evaluate("171!").is_err()); // overflow
 }
+
+// Alt-base representations backing the HEX/OCT/BIN buttons.
+#[test]
+fn test_alt_bases_integer() {
+    let engine = EngineeringEngine::new(AngleMode::Deg);
+    let r = engine.evaluate("255").unwrap();
+    let bases = r.alt_bases.expect("integer result should have alt bases");
+    assert_eq!(bases.hex, "FF");
+    assert_eq!(bases.oct, "377");
+    assert_eq!(bases.bin, "11111111");
+}
+
+#[test]
+fn test_alt_bases_none_for_non_integer() {
+    let engine = EngineeringEngine::new(AngleMode::Deg);
+    assert!(engine.evaluate("3.14").unwrap().alt_bases.is_none());
+}
+
+#[test]
+fn test_alt_bases_none_for_negative() {
+    let engine = EngineeringEngine::new(AngleMode::Deg);
+    assert!(engine.evaluate("0-5").unwrap().alt_bases.is_none());
+}
