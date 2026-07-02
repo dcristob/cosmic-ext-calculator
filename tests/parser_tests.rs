@@ -197,3 +197,84 @@ fn percentage_in_expression() {
     // 50% + 1 = 0.5 + 1 = 1.5
     assert!((p.parse("50%+1").unwrap() - 1.5).abs() < 1e-10);
 }
+
+// ── Bitwise operators ────────────────────────────────────────────
+#[test]
+fn bitwise_and() {
+    let mut p = Parser::new();
+    assert_eq!(p.parse("5 AND 3").unwrap(), 1.0);
+}
+
+#[test]
+fn bitwise_or() {
+    let mut p = Parser::new();
+    assert_eq!(p.parse("5 OR 2").unwrap(), 7.0);
+}
+
+#[test]
+fn bitwise_xor() {
+    let mut p = Parser::new();
+    assert_eq!(p.parse("5 XOR 1").unwrap(), 4.0);
+}
+
+#[test]
+fn bitwise_not() {
+    let mut p = Parser::new();
+    assert_eq!(p.parse("NOT 5").unwrap(), -6.0); // ~5 == -6 (two's complement)
+    assert_eq!(p.parse("NOT 0").unwrap(), -1.0);
+}
+
+#[test]
+fn bitwise_shifts() {
+    let mut p = Parser::new();
+    assert_eq!(p.parse("1 << 4").unwrap(), 16.0);
+    assert_eq!(p.parse("256 >> 2").unwrap(), 64.0);
+}
+
+#[test]
+fn bitwise_case_insensitive() {
+    let mut p = Parser::new();
+    assert_eq!(p.parse("5 and 3").unwrap(), 1.0);
+}
+
+#[test]
+fn bitwise_precedence_arithmetic_binds_tighter() {
+    let mut p = Parser::new();
+    // 1+2 AND 3  ==  3 AND 3  ==  3
+    assert_eq!(p.parse("1 + 2 AND 3").unwrap(), 3.0);
+    // 1 << 2+1  ==  1 << 3  ==  8
+    assert_eq!(p.parse("1 << 2 + 1").unwrap(), 8.0);
+}
+
+#[test]
+fn bitwise_precedence_and_over_or() {
+    let mut p = Parser::new();
+    // 6 AND 4 OR 1  ==  (6 AND 4) OR 1  ==  4 OR 1  ==  5
+    assert_eq!(p.parse("6 AND 4 OR 1").unwrap(), 5.0);
+}
+
+#[test]
+fn bitwise_in_parens() {
+    let mut p = Parser::new();
+    assert_eq!(p.parse("2 * (6 AND 3)").unwrap(), 4.0);
+}
+
+#[test]
+fn bitwise_not_then_and() {
+    let mut p = Parser::new();
+    // NOT 5 == -6; (-6) AND 3 == 2
+    assert_eq!(p.parse("NOT 5 AND 3").unwrap(), 2.0);
+}
+
+#[test]
+fn bitwise_requires_integers() {
+    let mut p = Parser::new();
+    assert!(p.parse("3.5 AND 1").is_err());
+}
+
+#[test]
+fn identifier_still_parses_after_bitwise_added() {
+    // AND-lookahead must not break normal identifiers/constants.
+    let mut p = Parser::new();
+    assert!((p.parse("2pi").unwrap() - std::f64::consts::PI * 2.0).abs() < 1e-9);
+}

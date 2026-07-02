@@ -34,7 +34,7 @@ impl Parser {
         self.input = trimmed.chars().collect();
         self.pos = 0;
 
-        let result = self.expression(&func_eval)?;
+        let result = self.bit_or(&func_eval)?;
         self.skip_whitespace();
         if self.pos < self.input.len() {
             return Err(CalcError::InvalidExpression(format!(
@@ -81,7 +81,119 @@ impl Parser {
         }
     }
 
+    /// Try to consume the identifier `kw` (case-insensitive). If the upcoming
+    /// token is a different identifier (or none), the position is restored and
+    /// this returns false — so keywords never clash with function/constant names.
+    fn try_keyword(&mut self, kw: &str) -> bool {
+        self.skip_whitespace();
+        let save = self.pos;
+        let start = self.pos;
+        while matches!(self.peek(), Some(c) if c.is_ascii_alphanumeric() || c == '_') {
+            self.advance();
+        }
+        let word: String = self.input[start..self.pos].iter().collect();
+        if !word.is_empty() && word.eq_ignore_ascii_case(kw) {
+            true
+        } else {
+            self.pos = save;
+            false
+        }
+    }
+
+    /// Peek (without consuming) whether the upcoming identifier is a reserved
+    /// bitwise keyword, so `implicit_mul` doesn't swallow `AND`/`OR`/… as an
+    /// implicit-multiplication identifier.
+    fn upcoming_is_bitwise_keyword(&self) -> bool {
+        let mut i = self.pos;
+        while i < self.input.len() && (self.input[i].is_ascii_alphanumeric() || self.input[i] == '_')
+        {
+            i += 1;
+        }
+        let word: String = self.input[self.pos..i].iter().collect();
+        matches!(
+            word.to_ascii_uppercase().as_str(),
+            "AND" | "OR" | "XOR" | "NOT"
+        )
+    }
+
+    /// Coerce a value to i64 for bitwise ops, rejecting non-integers and
+    /// out-of-range magnitudes.
+    fn to_int(v: f64) -> Result<i64, CalcError> {
+        if !v.is_finite() || v.fract() != 0.0 || v.abs() >= 9_223_372_036_854_775_808.0 {
+            return Err(CalcError::DomainError(
+                "bitwise operations require integers".into(),
+            ));
+        }
+        Ok(v as i64)
+    }
+
     // ── Grammar ──────────────────────────────────────────────────
+    // Bitwise operators are the loosest (below +/-), C/Python-style:
+    //   bit_or < bit_xor < bit_and < shift < expression(+/-) < term(*/) < ...
+
+    // bit_or = bit_xor ('OR' bit_xor)*
+    fn bit_or<F>(&mut self, func_eval: &F) -> Result<f64, CalcError>
+    where
+        F: Fn(&str, &[f64]) -> Result<f64, CalcError>,
+    {
+        let mut left = self.bit_xor(func_eval)?;
+        while self.try_keyword("OR") {
+            let right = self.bit_xor(func_eval)?;
+            left = (Self::to_int(left)? | Self::to_int(right)?) as f64;
+        }
+        Ok(left)
+    }
+
+    // bit_xor = bit_and ('XOR' bit_and)*
+    fn bit_xor<F>(&mut self, func_eval: &F) -> Result<f64, CalcError>
+    where
+        F: Fn(&str, &[f64]) -> Result<f64, CalcError>,
+    {
+        let mut left = self.bit_and(func_eval)?;
+        while self.try_keyword("XOR") {
+            let right = self.bit_and(func_eval)?;
+            left = (Self::to_int(left)? ^ Self::to_int(right)?) as f64;
+        }
+        Ok(left)
+    }
+
+    // bit_and = shift ('AND' shift)*
+    fn bit_and<F>(&mut self, func_eval: &F) -> Result<f64, CalcError>
+    where
+        F: Fn(&str, &[f64]) -> Result<f64, CalcError>,
+    {
+        let mut left = self.shift(func_eval)?;
+        while self.try_keyword("AND") {
+            let right = self.shift(func_eval)?;
+            left = (Self::to_int(left)? & Self::to_int(right)?) as f64;
+        }
+        Ok(left)
+    }
+
+    // shift = expression (('<<' | '>>') expression)*
+    fn shift<F>(&mut self, func_eval: &F) -> Result<f64, CalcError>
+    where
+        F: Fn(&str, &[f64]) -> Result<f64, CalcError>,
+    {
+        let mut left = self.expression(func_eval)?;
+        loop {
+            self.skip_whitespace();
+            let is_shl = match (self.peek(), self.input.get(self.pos + 1).copied()) {
+                (Some('<'), Some('<')) => true,
+                (Some('>'), Some('>')) => false,
+                _ => break,
+            };
+            self.advance();
+            self.advance();
+            let l = Self::to_int(left)?;
+            let r = Self::to_int(self.expression(func_eval)?)?;
+            if !(0..64).contains(&r) {
+                return Err(CalcError::DomainError("shift amount must be 0..63".into()));
+            }
+            left = (if is_shl { l << r } else { l >> r }) as f64;
+        }
+        Ok(left)
+    }
 
     // expression = term (('+' | '-') term)*
     fn expression<F>(&mut self, func_eval: &F) -> Result<f64, CalcError>
@@ -174,6 +286,11 @@ impl Parser {
         F: Fn(&str, &[f64]) -> Result<f64, CalcError>,
     {
         self.skip_whitespace();
+        // Bitwise NOT: unary prefix, binds like unary minus.
+        if self.try_keyword("NOT") {
+            let v = self.unary(func_eval)?;
+            return Ok((!Self::to_int(v)?) as f64);
+        }
         match self.peek() {
             Some('-') => {
                 self.advance();
@@ -239,6 +356,11 @@ impl Parser {
                     val *= self.primary(func_eval)?;
                 }
                 Some(c) if c == 'π' || self.is_constant_or_ident_start() => {
+                    // A reserved bitwise keyword (AND/OR/XOR/NOT) is an operator,
+                    // not an implicit-multiplication identifier.
+                    if self.upcoming_is_bitwise_keyword() {
+                        break;
+                    }
                     // implicit mul: number followed by constant/identifier
                     val *= self.primary(func_eval)?;
                 }
@@ -265,7 +387,7 @@ impl Parser {
         match self.peek() {
             Some('(') => {
                 self.advance();
-                let val = self.expression(func_eval)?;
+                let val = self.bit_or(func_eval)?;
                 self.expect(')')?;
                 Ok(val)
             }
@@ -338,12 +460,12 @@ impl Parser {
         if self.peek() == Some(')') {
             return Ok(args);
         }
-        args.push(self.expression(func_eval)?);
+        args.push(self.bit_or(func_eval)?);
         loop {
             self.skip_whitespace();
             if self.peek() == Some(',') {
                 self.advance();
-                args.push(self.expression(func_eval)?);
+                args.push(self.bit_or(func_eval)?);
             } else {
                 break;
             }

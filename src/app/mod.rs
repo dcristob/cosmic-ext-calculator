@@ -216,6 +216,14 @@ impl CosmicCalculator {
         }
     }
 
+    /// Byte index where the trailing numeric operand of `expression` begins
+    /// (0 if the whole thing is a number, `len` if it ends in a non-digit).
+    fn trailing_operand_start(&self) -> usize {
+        self.expression
+            .rfind(|c: char| !c.is_ascii_digit() && c != '.')
+            .map_or(0, |i| i + 1)
+    }
+
     /// Map the configured angle mode to the engine's enum.
     fn engine_angle_mode(&self) -> crate::engine::AngleMode {
         match self.config.angle_mode {
@@ -236,10 +244,7 @@ impl CosmicCalculator {
             self.just_evaluated = false;
             return;
         }
-        let trailing_start = self
-            .expression
-            .rfind(|c: char| !c.is_ascii_digit() && c != '.')
-            .map_or(0, |i| i + 1);
+        let trailing_start = self.trailing_operand_start();
         if trailing_start < self.expression.len() {
             let number = self.expression.split_off(trailing_start);
             self.expression.push_str(func);
@@ -641,16 +646,33 @@ impl Application for CosmicCalculator {
                 }
             }
             Message::BitwiseOp(op) => {
-                let symbol = match op {
-                    BitwiseOp::And => " AND ",
-                    BitwiseOp::Or => " OR ",
-                    BitwiseOp::Xor => " XOR ",
-                    BitwiseOp::Not => "NOT ",
-                    BitwiseOp::Shl => "<<",
-                    BitwiseOp::Shr => ">>",
-                };
-                self.just_evaluated = false;
-                self.expression.push_str(symbol);
+                if let BitwiseOp::Not = op {
+                    // NOT is a unary prefix: apply it to the current result or
+                    // trailing operand, otherwise begin a fresh NOT term — so
+                    // `5` then NOT reads as `NOT 5`, not `5NOT `.
+                    if self.just_evaluated {
+                        self.expression = format!("NOT {}", self.expression);
+                        self.just_evaluated = false;
+                    } else {
+                        let start = self.trailing_operand_start();
+                        if start < self.expression.len() {
+                            self.expression.insert_str(start, "NOT ");
+                        } else {
+                            self.expression.push_str("NOT ");
+                        }
+                    }
+                } else {
+                    let symbol = match op {
+                        BitwiseOp::And => " AND ",
+                        BitwiseOp::Or => " OR ",
+                        BitwiseOp::Xor => " XOR ",
+                        BitwiseOp::Shl => "<<",
+                        BitwiseOp::Shr => ">>",
+                        BitwiseOp::Not => unreachable!(),
+                    };
+                    self.just_evaluated = false;
+                    self.expression.push_str(symbol);
+                }
             }
             Message::BaseDisplay(base) => {
                 use crate::engine::Evaluate;
