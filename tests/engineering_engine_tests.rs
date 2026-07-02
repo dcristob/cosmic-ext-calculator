@@ -186,3 +186,31 @@ fn test_wrapped_prefix_function_negative_argument() {
     // cos is even: cos(-90) == cos(90) == 0
     assert!(approx_eq(engine.evaluate("cos(-90)").unwrap().value, 0.0));
 }
+
+// The n! button appends "!"; the parser routes postfix "!" to fact().
+#[test]
+fn test_factorial_postfix() {
+    let engine = EngineeringEngine::new(AngleMode::Deg);
+    assert!(approx_eq(engine.evaluate("5!").unwrap().value, 120.0));
+    assert!(approx_eq(engine.evaluate("0!").unwrap().value, 1.0));
+}
+
+#[test]
+fn test_factorial_postfix_in_expression() {
+    let engine = EngineeringEngine::new(AngleMode::Deg);
+    assert!(approx_eq(engine.evaluate("3!+1").unwrap().value, 7.0));
+}
+
+#[test]
+fn test_factorial_binds_tighter_than_power() {
+    // 2 ^ 3! == 2 ^ 6 == 64 (factorial applies before exponent)
+    let engine = EngineeringEngine::new(AngleMode::Deg);
+    assert!(approx_eq(engine.evaluate("2^3!").unwrap().value, 64.0));
+}
+
+#[test]
+fn test_factorial_postfix_domain_errors() {
+    let engine = EngineeringEngine::new(AngleMode::Deg);
+    assert!(engine.evaluate("3.5!").is_err()); // non-integer
+    assert!(engine.evaluate("171!").is_err()); // overflow
+}
