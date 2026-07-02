@@ -216,6 +216,15 @@ impl CosmicCalculator {
         }
     }
 
+    /// Map the configured angle mode to the engine's enum.
+    fn engine_angle_mode(&self) -> crate::engine::AngleMode {
+        match self.config.angle_mode {
+            config::AngleMode::Deg => crate::engine::AngleMode::Deg,
+            config::AngleMode::Rad => crate::engine::AngleMode::Rad,
+            config::AngleMode::Grad => crate::engine::AngleMode::Grad,
+        }
+    }
+
     /// Apply a prefix function like "cos(" to the current operand, wrapping it
     /// as the argument (`34` -> `cos(34)`) instead of leaving a dangling
     /// `34cos(`. Right after an evaluation the whole result is wrapped,
@@ -535,15 +544,10 @@ impl Application for CosmicCalculator {
                     Mode::Standard => {
                         crate::engine::standard::StandardEngine.evaluate(&self.expression)
                     }
-                    Mode::Engineering => {
-                        let angle = match self.config.angle_mode {
-                            config::AngleMode::Deg => crate::engine::AngleMode::Deg,
-                            config::AngleMode::Rad => crate::engine::AngleMode::Rad,
-                            config::AngleMode::Grad => crate::engine::AngleMode::Grad,
-                        };
-                        crate::engine::engineering::EngineeringEngine::new(angle)
-                            .evaluate(&self.expression)
-                    }
+                    Mode::Engineering => crate::engine::engineering::EngineeringEngine::new(
+                        self.engine_angle_mode(),
+                    )
+                    .evaluate(&self.expression),
                     Mode::Financial => {
                         crate::engine::standard::StandardEngine.evaluate(&self.expression)
                     }
@@ -649,8 +653,26 @@ impl Application for CosmicCalculator {
                 self.expression.push_str(symbol);
             }
             Message::BaseDisplay(base) => {
+                use crate::engine::Evaluate;
+                // If there's fresh, unevaluated input, evaluate it first so the
+                // base buttons convert the current value (e.g. `43` -> HEX, or
+                // `40+3` -> HEX) without needing an explicit `=`.
+                if !self.expression.is_empty() && !self.just_evaluated {
+                    match crate::engine::engineering::EngineeringEngine::new(
+                        self.engine_angle_mode(),
+                    )
+                    .evaluate(&self.expression)
+                    {
+                        Ok(r) => {
+                            self.expression = r.value.to_string();
+                            self.just_evaluated = true;
+                            self.last_result = Some(r);
+                        }
+                        Err(e) => return self.update(Message::ShowToast(e.to_string())),
+                    }
+                }
                 let Some(result) = &self.last_result else {
-                    return self.update(Message::ShowToast("Evaluate something first".into()));
+                    return self.update(Message::ShowToast("Enter a value first".into()));
                 };
                 let repr = match base {
                     BaseDisplay::Dec => Some(result.display.clone()),
