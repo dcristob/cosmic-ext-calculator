@@ -1,10 +1,12 @@
 app-title = Calculator
-menu-root = About
+menu-root = Menu
 standard = Standard
 engineering = Engineering
 financial = Financial
 clear-history = Clear History
 about = About
+settings = Settings
+tax-rate = Tax rate (%)
 delete = Delete
 support = Support
 repository = Repository
