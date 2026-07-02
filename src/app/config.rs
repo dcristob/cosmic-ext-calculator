@@ -8,12 +8,25 @@ use crate::app::CosmicCalculator;
 
 pub const CONFIG_VERSION: u64 = 1;
 
-#[derive(Clone, Debug, Default, PartialEq, Deserialize, Serialize, CosmicConfigEntry)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize, CosmicConfigEntry)]
 pub struct CalculatorConfig {
     pub app_theme: AppTheme,
     pub history: Vec<HistoryEntry>,
     pub angle_mode: AngleMode,
     pub tax_rate: f64,
+}
+
+impl Default for CalculatorConfig {
+    fn default() -> Self {
+        Self {
+            app_theme: AppTheme::default(),
+            history: Vec::new(),
+            angle_mode: AngleMode::default(),
+            // Sensible starting VAT so Tax+/Tax− work out of the box;
+            // editable in Settings.
+            tax_rate: 21.0,
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]

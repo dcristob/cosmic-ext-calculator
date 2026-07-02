@@ -76,15 +76,25 @@ fn test_solve_rate() {
 }
 
 #[test]
-fn test_margin() {
+fn test_price_from_margin() {
     let engine = FinancialEngine;
-    assert!(approx_eq(engine.margin(80.0, 100.0), 20.0, 0.01));
+    // cost 60, 40% margin -> 60 / (1 - 0.40) = 100
+    assert!(approx_eq(
+        engine.price_from_margin(60.0, 40.0).unwrap(),
+        100.0,
+        1e-9
+    ));
 }
 
 #[test]
-fn test_markup() {
+fn test_price_from_markup() {
     let engine = FinancialEngine;
-    assert!(approx_eq(engine.markup(80.0, 100.0), 25.0, 0.01));
+    // cost 60, 66.6667% markup -> 60 * (1 + 0.666667) = 100
+    assert!(approx_eq(
+        engine.price_from_markup(60.0, 66.666_667).unwrap(),
+        100.0,
+        1e-4
+    ));
 }
 
 #[test]
@@ -97,4 +107,18 @@ fn test_tax_add() {
 fn test_tax_remove() {
     let engine = FinancialEngine;
     assert!(approx_eq(engine.remove_tax(121.0, 21.0), 100.0, 0.01));
+}
+
+#[test]
+fn test_price_from_margin_100pct_errors() {
+    // A 100% margin has no valid price (divide by zero).
+    let engine = FinancialEngine;
+    assert!(engine.price_from_margin(60.0, 100.0).is_err());
+}
+
+#[test]
+fn test_price_from_markup_below_neg100_errors() {
+    // A markup below -100% would produce a negative price.
+    let engine = FinancialEngine;
+    assert!(engine.price_from_markup(60.0, -150.0).is_err());
 }

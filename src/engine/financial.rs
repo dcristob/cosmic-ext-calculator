@@ -154,14 +154,24 @@ impl FinancialEngine {
         }
     }
 
-    #[allow(dead_code)]
-    pub fn margin(&self, cost: f64, price: f64) -> f64 {
-        (price - cost) / price * 100.0
+    /// Selling price for a cost and a target margin (percent of the price).
+    /// `price = cost / (1 - margin/100)`.
+    pub fn price_from_margin(&self, cost: f64, margin_pct: f64) -> Result<f64, CalcError> {
+        let denom = 1.0 - margin_pct / 100.0;
+        if denom <= 0.0 {
+            return Err(CalcError::DomainError("margin must be below 100%".into()));
+        }
+        Ok(cost / denom)
     }
 
-    #[allow(dead_code)]
-    pub fn markup(&self, cost: f64, price: f64) -> f64 {
-        (price - cost) / cost * 100.0
+    /// Selling price for a cost and a markup (percent of the cost).
+    /// `price = cost * (1 + markup/100)`.
+    pub fn price_from_markup(&self, cost: f64, markup_pct: f64) -> Result<f64, CalcError> {
+        let factor = 1.0 + markup_pct / 100.0;
+        if factor <= 0.0 {
+            return Err(CalcError::DomainError("markup must be above -100%".into()));
+        }
+        Ok(cost * factor)
     }
 
     pub fn add_tax(&self, net: f64, tax_rate: f64) -> f64 {

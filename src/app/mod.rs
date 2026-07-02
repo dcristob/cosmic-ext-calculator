@@ -40,6 +40,12 @@ pub struct CosmicCalculator {
     /// starts a fresh expression instead of appending to the carried-over
     /// result, while a following operator continues chaining from that result.
     just_evaluated: bool,
+    /// Holds the first value (cost) and chosen function while a two-step
+    /// Margin/Markup entry is in progress; `None` when not mid-operation.
+    pending_quick: Option<(QuickFinancial, f64)>,
+    /// Text buffer backing the Settings tax-rate input, so partial entries
+    /// like "8." survive without round-tripping through the stored f64.
+    tax_rate_input: String,
     tvm_n: String,
     tvm_rate: String,
     tvm_pv: String,
@@ -138,6 +144,7 @@ pub enum Message {
     QuickFinancial(QuickFinancial),
     ToggleSign,
     HistorySelect(usize),
+    TaxRateChanged(String),
 }
 
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq)]
@@ -145,6 +152,7 @@ pub enum ContextPage {
     #[default]
     About,
     History,
+    Settings,
 }
 
 pub struct Flags {
@@ -155,6 +163,7 @@ pub struct Flags {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum MenuAction {
     About,
+    Settings,
     ClearHistory,
     ToggleHistory,
     SwitchStandard,
@@ -170,6 +179,7 @@ impl MenuActionTrait for MenuAction {
     fn message(&self) -> Self::Message {
         match self {
             MenuAction::About => Message::ToggleContextPage(ContextPage::About),
+            MenuAction::Settings => Message::ToggleContextPage(ContextPage::Settings),
             MenuAction::ClearHistory => Message::CleanHistory,
             MenuAction::ToggleHistory => Message::ToggleContextPage(ContextPage::History),
             MenuAction::SwitchStandard => Message::SwitchMode(Mode::Standard),
@@ -258,6 +268,7 @@ impl Application for CosmicCalculator {
             ]);
 
         let history = flags.config.history.clone();
+        let tax_rate_input = flags.config.tax_rate.to_string();
 
         let mut app = CosmicCalculator {
             core,
@@ -271,6 +282,8 @@ impl Application for CosmicCalculator {
             expression: String::new(),
             display: String::from("0"),
             just_evaluated: false,
+            pending_quick: None,
+            tax_rate_input,
             tvm_n: String::new(),
             tvm_rate: String::new(),
             tvm_pv: String::new(),
@@ -296,6 +309,11 @@ impl Application for CosmicCalculator {
                         fl!("clear-history"),
                         Some(icons::get_handle("edit-clear-all-symbolic", 14)),
                         MenuAction::ClearHistory,
+                    ),
+                    menu::Item::Button(
+                        fl!("settings"),
+                        Some(icons::get_handle("emblem-system-symbolic", 14)),
+                        MenuAction::Settings,
                     ),
                     menu::Item::Button(
                         fl!("about"),
@@ -341,14 +359,34 @@ impl Application for CosmicCalculator {
             .spacing(spacing.space_xxs)
             .width(cosmic::iced::Length::Fill);
 
+        // While a two-step Margin/Markup is pending, the small line carries
+        // the cost prompt and the large line shows the percentage being typed;
+        // otherwise the small line is the expression and the large line the
+        // result.
+        let (top_line, bottom_line) = match self.pending_quick {
+            Some((func, cost)) => {
+                let label = match func {
+                    QuickFinancial::Markup => "markup",
+                    _ => "margin",
+                };
+                let entry = if self.expression.is_empty() {
+                    "0".to_string()
+                } else {
+                    self.expression.clone()
+                };
+                (format!("cost {cost} · {label} %?"), entry)
+            }
+            None => (self.expression.clone(), self.display.clone()),
+        };
+
         let display = widget::column::with_capacity(2)
             .push(
-                widget::text::body(&self.expression)
+                widget::text::body(top_line)
                     .width(cosmic::iced::Length::Fill)
                     .align_x(cosmic::iced::Alignment::End),
             )
             .push(
-                widget::text::title1(&self.display)
+                widget::text::title1(bottom_line)
                     .width(cosmic::iced::Length::Fill)
                     .align_x(cosmic::iced::Alignment::End),
             )
@@ -477,6 +515,11 @@ impl Application for CosmicCalculator {
                 self.expression.push_str(op.expression());
             }
             Message::Evaluate => {
+                // Finish a pending two-step Margin/Markup rather than
+                // evaluating the price entry as a bare expression.
+                if let Some((func, _)) = self.pending_quick {
+                    return self.update(Message::QuickFinancial(func));
+                }
                 use crate::engine::Evaluate;
                 let result = match self.mode {
                     Mode::Standard => {
@@ -525,6 +568,7 @@ impl Application for CosmicCalculator {
                 self.expression.clear();
                 self.display = String::from("0");
                 self.just_evaluated = false;
+                self.pending_quick = None;
             }
             Message::Backspace => {
                 self.just_evaluated = false;
@@ -668,20 +712,53 @@ impl Application for CosmicCalculator {
             Message::QuickFinancial(func) => {
                 use crate::engine::financial::FinancialEngine;
                 let engine = FinancialEngine;
-                if let Ok(value) = self.expression.parse::<f64>() {
-                    let result = match func {
-                        QuickFinancial::TaxAdd => engine.add_tax(value, self.config.tax_rate),
-                        QuickFinancial::TaxRemove => engine.remove_tax(value, self.config.tax_rate),
-                        _ => {
-                            return self.update(Message::ShowToast(
-                                "Enter cost and price separated by comma".into(),
-                            ));
-                        }
-                    };
-                    self.display = format!("{:.2}", result);
-                    self.expression = result.to_string();
-                } else {
+                let Ok(value) = self.expression.parse::<f64>() else {
                     return self.update(Message::ShowToast("Enter a valid number first".into()));
+                };
+                match func {
+                    QuickFinancial::TaxAdd | QuickFinancial::TaxRemove => {
+                        // Single operand: operate immediately on the entry.
+                        self.pending_quick = None;
+                        let result = match func {
+                            QuickFinancial::TaxAdd => engine.add_tax(value, self.config.tax_rate),
+                            _ => engine.remove_tax(value, self.config.tax_rate),
+                        };
+                        self.display = format!("{result:.2}");
+                        self.expression = result.to_string();
+                        self.just_evaluated = true;
+                    }
+                    QuickFinancial::Margin | QuickFinancial::Markup => {
+                        match self.pending_quick.take() {
+                            // First press: stash the cost. The prompt for the
+                            // percentage is rendered from `pending_quick` in
+                            // the view (small line).
+                            None => {
+                                self.pending_quick = Some((func, value));
+                                self.expression.clear();
+                            }
+                            // Second value is the percentage; compute the
+                            // selling price with the first-press function.
+                            Some((pending_func, cost)) => {
+                                let result = match pending_func {
+                                    QuickFinancial::Markup => {
+                                        engine.price_from_markup(cost, value)
+                                    }
+                                    // Only Margin/Markup are ever stashed.
+                                    _ => engine.price_from_margin(cost, value),
+                                };
+                                match result {
+                                    Ok(price) => {
+                                        self.display = format!("{price:.2}");
+                                        self.expression = price.to_string();
+                                        self.just_evaluated = true;
+                                    }
+                                    Err(e) => {
+                                        return self.update(Message::ShowToast(e.to_string()));
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
             Message::ToggleSign => {
@@ -699,6 +776,17 @@ impl Application for CosmicCalculator {
                     self.expression = entry.result.clone();
                     self.display = entry.result.clone();
                 }
+            }
+            Message::TaxRateChanged(value) => {
+                // Keep the raw text so partial entries survive; mirror valid
+                // numbers into the persisted config for Tax+/Tax−.
+                if let Ok(rate) = value.parse::<f64>() {
+                    self.config.tax_rate = rate;
+                    if let Some(config_handler) = &self.config_handler {
+                        let _ = self.config.set_tax_rate(config_handler, rate);
+                    }
+                }
+                self.tax_rate_input = value;
             }
         }
         cosmic::iced::Task::batch(tasks)
@@ -718,6 +806,11 @@ impl Application for CosmicCalculator {
             ContextPage::History => {
                 let content = ui::history::view(&self.history);
                 context_drawer::context_drawer(content, Message::ToggleContextDrawer)
+            }
+            ContextPage::Settings => {
+                let content = ui::settings::view(&self.tax_rate_input);
+                context_drawer::context_drawer(content, Message::ToggleContextDrawer)
+                    .title(fl!("settings"))
             }
         })
     }
