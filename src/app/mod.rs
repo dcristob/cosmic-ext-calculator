@@ -20,6 +20,7 @@ use cosmic::{Application, Core};
 
 use crate::core::icons;
 use crate::core::keybinds::key_binds;
+use crate::engine::CalcResult;
 use crate::fl;
 use crate::ui;
 
@@ -46,6 +47,11 @@ pub struct CosmicCalculator {
     /// Text buffer backing the Settings tax-rate input, so partial entries
     /// like "8." survive without round-tripping through the stored f64.
     tax_rate_input: String,
+    /// Last evaluated result, kept so the HEX/DEC/OCT/BIN buttons can reformat
+    /// it (it already bundles the decimal display and the alt-base strings).
+    last_result: Option<CalcResult>,
+    /// Base the last result is currently shown in (drives button highlight).
+    current_base: BaseDisplay,
     tvm_n: String,
     tvm_rate: String,
     tvm_pv: String,
@@ -284,6 +290,8 @@ impl Application for CosmicCalculator {
             just_evaluated: false,
             pending_quick: None,
             tax_rate_input,
+            last_result: None,
+            current_base: BaseDisplay::Dec,
             tvm_n: String::new(),
             tvm_rate: String::new(),
             tvm_pv: String::new(),
@@ -395,7 +403,9 @@ impl Application for CosmicCalculator {
         let row_spacing = row_spacing_for(self.mode);
         let button_grid = match self.mode {
             Mode::Standard => ui::standard::view(row_spacing),
-            Mode::Engineering => ui::engineering::view(self.config.angle_mode, row_spacing),
+            Mode::Engineering => {
+                ui::engineering::view(self.config.angle_mode, self.current_base, row_spacing)
+            }
             Mode::Financial => ui::financial::view(
                 self.active_tvm_field,
                 &self.tvm_n,
@@ -555,9 +565,13 @@ impl Application for CosmicCalculator {
                                 .config
                                 .set_history(config_handler, self.history.clone());
                         }
-                        self.display = result.display;
+                        self.display = result.display.clone();
                         self.expression = result.value.to_string();
                         self.just_evaluated = true;
+                        // A fresh result is shown in decimal; keep it around so
+                        // the base buttons can reformat it.
+                        self.current_base = BaseDisplay::Dec;
+                        self.last_result = Some(result);
                     }
                     Err(e) => {
                         return self.update(Message::ShowToast(e.to_string()));
@@ -569,6 +583,8 @@ impl Application for CosmicCalculator {
                 self.display = String::from("0");
                 self.just_evaluated = false;
                 self.pending_quick = None;
+                self.last_result = None;
+                self.current_base = BaseDisplay::Dec;
             }
             Message::Backspace => {
                 self.just_evaluated = false;
@@ -632,8 +648,27 @@ impl Application for CosmicCalculator {
                 self.just_evaluated = false;
                 self.expression.push_str(symbol);
             }
-            Message::BaseDisplay(_base) => {
-                // Base display toggle - will show alt_bases from result
+            Message::BaseDisplay(base) => {
+                let Some(result) = &self.last_result else {
+                    return self.update(Message::ShowToast("Evaluate something first".into()));
+                };
+                let repr = match base {
+                    BaseDisplay::Dec => Some(result.display.clone()),
+                    BaseDisplay::Hex => result.alt_bases.as_ref().map(|a| format!("0x{}", a.hex)),
+                    BaseDisplay::Oct => result.alt_bases.as_ref().map(|a| format!("0o{}", a.oct)),
+                    BaseDisplay::Bin => result.alt_bases.as_ref().map(|a| format!("0b{}", a.bin)),
+                };
+                match repr {
+                    Some(s) => {
+                        self.display = s;
+                        self.current_base = base;
+                    }
+                    None => {
+                        return self.update(Message::ShowToast(
+                            "Only non-negative integers have hex/oct/bin".into(),
+                        ));
+                    }
+                }
             }
             Message::TvmSelectField(field) => {
                 self.active_tvm_field = field;

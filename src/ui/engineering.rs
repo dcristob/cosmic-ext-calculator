@@ -37,7 +37,11 @@ fn calc_button<'a>(label: &str, message: Message, style: theme::Button) -> Eleme
     .into()
 }
 
-pub fn view<'a>(angle_mode: AngleMode, row_spacing: u16) -> Element<'a, Message> {
+pub fn view<'a>(
+    angle_mode: AngleMode,
+    current_base: BaseDisplay,
+    row_spacing: u16,
+) -> Element<'a, Message> {
     let spacing = cosmic::theme::active().cosmic().spacing;
 
     // Angle mode bar (3 buttons)
@@ -101,12 +105,20 @@ pub fn view<'a>(angle_mode: AngleMode, row_spacing: u16) -> Element<'a, Message>
         .width(Length::Fill)
         .height(FUNC_ROW_HEIGHT);
 
-    // Base/constants row (6 cols)
+    // Base/constants row (6 cols) — the active base is highlighted, like the
+    // DEG/RAD/GRAD angle buttons.
+    let base_style = |base: BaseDisplay| {
+        if base == current_base {
+            theme::Button::Suggested
+        } else {
+            theme::Button::Standard
+        }
+    };
     let base_row = widget::row::with_capacity(6)
-        .push(func_button("HEX", Message::BaseDisplay(BaseDisplay::Hex), theme::Button::Standard))
-        .push(func_button("DEC", Message::BaseDisplay(BaseDisplay::Dec), theme::Button::Standard))
-        .push(func_button("OCT", Message::BaseDisplay(BaseDisplay::Oct), theme::Button::Standard))
-        .push(func_button("BIN", Message::BaseDisplay(BaseDisplay::Bin), theme::Button::Standard))
+        .push(func_button("HEX", Message::BaseDisplay(BaseDisplay::Hex), base_style(BaseDisplay::Hex)))
+        .push(func_button("DEC", Message::BaseDisplay(BaseDisplay::Dec), base_style(BaseDisplay::Dec)))
+        .push(func_button("OCT", Message::BaseDisplay(BaseDisplay::Oct), base_style(BaseDisplay::Oct)))
+        .push(func_button("BIN", Message::BaseDisplay(BaseDisplay::Bin), base_style(BaseDisplay::Bin)))
         .push(func_button("π", Message::EngFunction("pi".into()), theme::Button::Standard))
         .push(func_button("e", Message::EngFunction("e".into()), theme::Button::Standard))
         .spacing(spacing.space_xxs)
