@@ -237,3 +237,18 @@ fn test_alt_bases_none_for_negative() {
     let engine = EngineeringEngine::new(AngleMode::Deg);
     assert!(engine.evaluate("0-5").unwrap().alt_bases.is_none());
 }
+
+// Bitwise ops flow through the engineering engine end-to-end.
+#[test]
+fn test_bitwise_through_engine() {
+    let engine = EngineeringEngine::new(AngleMode::Deg);
+    assert!(approx_eq(engine.evaluate("5 AND 3").unwrap().value, 1.0));
+    assert!(approx_eq(engine.evaluate("NOT 5").unwrap().value, -6.0));
+    assert!(approx_eq(engine.evaluate("1 << 4").unwrap().value, 16.0));
+}
+
+#[test]
+fn test_bitwise_non_integer_errors_through_engine() {
+    let engine = EngineeringEngine::new(AngleMode::Deg);
+    assert!(engine.evaluate("2.5 OR 1").is_err());
+}
