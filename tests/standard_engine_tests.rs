@@ -1,4 +1,4 @@
-use cosmic_ext_calculator::engine::{Evaluate, standard::StandardEngine};
+use cosmic_calc_plus::engine::{Evaluate, standard::StandardEngine};
 
 #[test]
 fn test_basic_arithmetic() {

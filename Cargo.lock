@@ -776,6 +776,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "cosmic-calc-plus"
+version = "0.3.0"
+dependencies = [
+ "arboard",
+ "i18n-embed 0.14.1",
+ "i18n-embed-fl 0.8.0",
+ "libcosmic",
+ "open",
+ "rust-embed",
+ "serde",
+ "thiserror 2.0.18",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "cosmic-client-toolkit"
 version = "0.2.0"
 source = "git+https://github.com/pop-os/cosmic-protocols?rev=160b086#160b086abe03cd34a8a375d7fbe47b24308d1f38"
@@ -816,22 +832,6 @@ source = "git+https://github.com/pop-os/libcosmic.git#12be83a8ef58019a1bd31ead10
 dependencies = [
  "quote",
  "syn 2.0.117",
-]
-
-[[package]]
-name = "cosmic-ext-calculator"
-version = "0.1.0"
-dependencies = [
- "arboard",
- "i18n-embed 0.14.1",
- "i18n-embed-fl 0.8.0",
- "libcosmic",
- "open",
- "rust-embed",
- "serde",
- "thiserror 2.0.18",
- "tracing",
- "tracing-subscriber",
 ]
 
 [[package]]

@@ -17,7 +17,7 @@ pub fn init() {
     localize();
     if std::env::var("RUST_LOG").is_err() {
         unsafe {
-            std::env::set_var("RUST_LOG", "cosmic_ext_calculator=info");
+            std::env::set_var("RUST_LOG", "cosmic_calc_plus=info");
         }
     }
     tracing_subscriber::registry()

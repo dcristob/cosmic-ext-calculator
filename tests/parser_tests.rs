@@ -1,5 +1,5 @@
-use cosmic_ext_calculator::engine::parser::Parser;
-use cosmic_ext_calculator::engine::CalcError;
+use cosmic_calc_plus::engine::parser::Parser;
+use cosmic_calc_plus::engine::CalcError;
 
 #[test]
 fn integer_literal() {
