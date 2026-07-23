@@ -274,7 +274,7 @@ impl Application for CosmicCalculator {
         let about = About::default()
             .name(fl!("app-title"))
             .icon(widget::icon::from_name(Self::APP_ID))
-            .version("0.1.0")
+            .version(env!("CARGO_PKG_VERSION"))
             .license("GPL-3.0-only")
             .links([
                 (

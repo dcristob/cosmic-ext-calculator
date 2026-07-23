@@ -1,4 +1,4 @@
-app-title = Calculator
+app-title = Calc Plus
 menu-root = Menu
 standard = Standard
 engineering = Engineering
