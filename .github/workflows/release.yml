@@ -3,6 +3,7 @@ name: Release
 on:
   push:
     branches: [main]
+    tags: ['v*']
   workflow_dispatch:
 
 permissions:
@@ -42,29 +43,40 @@ jobs:
       - name: Stage release artifacts
         run: |
           mkdir -p dist
-          cp target/release/cosmic-ext-calculator dist/
+          cp target/release/cosmic-calc-plus dist/
           cp res/dev.dcristob.Calculator.desktop dist/
           cp res/dev.dcristob.Calculator.metainfo.xml dist/
           cp res/icons/hicolor/scalable/apps/dev.dcristob.Calculator.svg dist/
 
-      - name: Publish rolling "latest" release
+      - name: Publish rolling "latest" dev build
+        if: github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: latest
-          name: "Latest build (main) — ${{ steps.meta.outputs.date }}"
+          name: "Latest dev build (main) — ${{ steps.meta.outputs.date }}"
           body: |
-            Rolling build from the tip of `main`. Replaced on every push.
+            Rolling build from the tip of `main`, replaced on every push.
+            For a stable download, use a versioned release below.
 
             Built: ${{ steps.meta.outputs.date }}
             Commit: `${{ steps.meta.outputs.short_sha }}` (`${{ github.sha }}`)
-
-            To install, run:
-
-            ```sh
-            curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/install.sh | bash
-            ```
           files: |
-            dist/cosmic-ext-calculator
+            dist/cosmic-calc-plus
+            dist/dev.dcristob.Calculator.desktop
+            dist/dev.dcristob.Calculator.metainfo.xml
+            dist/dev.dcristob.Calculator.svg
+          make_latest: "false"
+          prerelease: true
+
+      - name: Publish versioned release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: "Calc Plus ${{ github.ref_name }}"
+          generate_release_notes: true
+          files: |
+            dist/cosmic-calc-plus
             dist/dev.dcristob.Calculator.desktop
             dist/dev.dcristob.Calculator.metainfo.xml
             dist/dev.dcristob.Calculator.svg
