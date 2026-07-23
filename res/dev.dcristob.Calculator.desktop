@@ -1,7 +1,7 @@
 [Desktop Entry]
-Name=Calculator
+Name=Calc Plus
 Comment=A multi-mode calculator for the COSMIC desktop
-Exec=cosmic-ext-calculator
+Exec=cosmic-calc-plus
 Icon=dev.dcristob.Calculator
 Terminal=false
 Type=Application

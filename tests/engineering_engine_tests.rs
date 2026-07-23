@@ -1,5 +1,5 @@
-use cosmic_ext_calculator::engine::engineering::EngineeringEngine;
-use cosmic_ext_calculator::engine::{AngleMode, Evaluate};
+use cosmic_calc_plus::engine::engineering::EngineeringEngine;
+use cosmic_calc_plus::engine::{AngleMode, Evaluate};
 
 fn approx_eq(a: f64, b: f64) -> bool {
     (a - b).abs() < 1e-9

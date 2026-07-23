@@ -1,4 +1,4 @@
-use cosmic_ext_calculator::engine::financial::{FinancialEngine, TvmParams, TvmSolveFor};
+use cosmic_calc_plus::engine::financial::{FinancialEngine, TvmParams, TvmSolveFor};
 
 fn approx_eq(a: f64, b: f64, tolerance: f64) -> bool {
     (a - b).abs() < tolerance
