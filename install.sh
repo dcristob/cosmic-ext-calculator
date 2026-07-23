@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Install cosmic-ext-calculator — from the latest GitHub release by default,
+# Install cosmic-calc-plus — from the latest GitHub release by default,
 # or from a local build with --local.
 #
 # Usage:
@@ -15,7 +15,7 @@ set -euo pipefail
 
 REPO="dcristob/cosmic-ext-calculator"
 APP_ID="dev.dcristob.Calculator"
-BIN="cosmic-ext-calculator"
+BIN="cosmic-calc-plus"
 BASE_URL="https://github.com/${REPO}/releases/latest/download"
 
 LOCAL=0
