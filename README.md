@@ -1,4 +1,4 @@
-# COSMIC Calculator
+# Calc Plus
 
 A multi-mode calculator for the [COSMIC desktop](https://system76.com/cosmic/), built with [libcosmic](https://github.com/pop-os/libcosmic).
 
@@ -21,6 +21,8 @@ Installs the latest release from GitHub into `~/.local/` (per-user) — no sudo 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/dcristob/cosmic-ext-calculator/main/install.sh | bash
 ```
+
+Installs as `cosmic-calc-plus`, so it coexists with upstream `cosmic-ext-calculator`.
 
 System-wide (all users):
 
