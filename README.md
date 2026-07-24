@@ -19,7 +19,7 @@ _Coming soon._
 Installs the latest release from GitHub into `~/.local/` (per-user) — no sudo needed:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/dcristob/cosmic-ext-calculator/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/dcristob/cosmic-ext-calc-plus/main/install.sh | bash
 ```
 
 Installs as `cosmic-calc-plus`, so it coexists with upstream `cosmic-ext-calculator`.
@@ -27,10 +27,10 @@ Installs as `cosmic-calc-plus`, so it coexists with upstream `cosmic-ext-calcula
 System-wide (all users):
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/dcristob/cosmic-ext-calculator/main/install.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/dcristob/cosmic-ext-calc-plus/main/install.sh | sudo bash
 ```
 
-The script fetches the binary, `.desktop` entry, AppStream metainfo, and icon from the [latest release](https://github.com/dcristob/cosmic-ext-calculator/releases/latest), and refreshes the icon/desktop caches so the app appears in your launcher immediately.
+The script fetches the binary, `.desktop` entry, AppStream metainfo, and icon from the [latest release](https://github.com/dcristob/cosmic-ext-calc-plus/releases/latest), and refreshes the icon/desktop caches so the app appears in your launcher immediately.
 
 Binaries are built on Ubuntu (glibc-based). If your distro uses musl or an older glibc, build from source.
 
@@ -39,8 +39,8 @@ Binaries are built on Ubuntu (glibc-based). If your distro uses musl or an older
 Requires Rust (1.80+) and a COSMIC desktop session on Wayland.
 
 ```sh
-git clone https://github.com/dcristob/cosmic-ext-calculator.git
-cd cosmic-ext-calculator
+git clone https://github.com/dcristob/cosmic-ext-calc-plus.git
+cd cosmic-ext-calc-plus
 cargo build --release
 ./install.sh    # installs the freshly built binary + desktop integration
 ```

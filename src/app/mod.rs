@@ -279,11 +279,11 @@ impl Application for CosmicCalculator {
             .links([
                 (
                     fl!("repository"),
-                    "https://github.com/dcristob/cosmic-ext-calculator",
+                    "https://github.com/dcristob/cosmic-ext-calc-plus",
                 ),
                 (
                     fl!("support"),
-                    "https://github.com/dcristob/cosmic-ext-calculator/issues",
+                    "https://github.com/dcristob/cosmic-ext-calc-plus/issues",
                 ),
             ]);
 

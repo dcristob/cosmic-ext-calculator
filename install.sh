@@ -4,16 +4,16 @@
 #
 # Usage:
 #   Install from latest release (per-user, ~/.local):
-#     curl -fsSL https://raw.githubusercontent.com/dcristob/cosmic-ext-calculator/main/install.sh | bash
+#     curl -fsSL https://raw.githubusercontent.com/dcristob/cosmic-ext-calc-plus/main/install.sh | bash
 #   System-wide (all users, /usr):
-#     curl -fsSL https://raw.githubusercontent.com/dcristob/cosmic-ext-calculator/main/install.sh | sudo bash
+#     curl -fsSL https://raw.githubusercontent.com/dcristob/cosmic-ext-calc-plus/main/install.sh | sudo bash
 #   From a local cargo build (run inside the repo):
 #     ./install.sh --local
 #     sudo ./install.sh --local     # system-wide
 
 set -euo pipefail
 
-REPO="dcristob/cosmic-ext-calculator"
+REPO="dcristob/cosmic-ext-calc-plus"
 APP_ID="dev.dcristob.Calculator"
 BIN="cosmic-calc-plus"
 BASE_URL="https://github.com/${REPO}/releases/latest/download"
